@@ -1,0 +1,53 @@
+{
+  "metadata": {
+    "spec_file": "example_spec.md",
+    "generated_at": "2026-03-28T00:00:00",
+    "total_questions": 5
+  },
+  "questions": [
+    {
+      "id": 1,
+      "type": "qa",
+      "difficulty": "easy",
+      "question": "請說明 HTTP 200 狀態碼的含義。",
+      "reference_answer": "HTTP 200 表示請求成功。伺服器已成功處理了請求，並回傳了所請求的資源。",
+      "source_section": "2.1 HTTP Status Codes"
+    },
+    {
+      "id": 2,
+      "type": "multiple_choice",
+      "difficulty": "easy",
+      "question": "HTTP 404 狀態碼代表什麼？",
+      "options": ["A) 伺服器錯誤", "B) 未授權", "C) 找不到資源", "D) 請求逾時"],
+      "correct_answer": "C",
+      "explanation": "404 Not Found 表示伺服器找不到請求的資源。",
+      "source_section": "2.1 HTTP Status Codes"
+    },
+    {
+      "id": 3,
+      "type": "qa",
+      "difficulty": "medium",
+      "question": "請解釋 REST API 中 GET 和 POST 方法的主要區別。",
+      "reference_answer": "GET 用於讀取資源，是冪等且安全的操作，參數透過 URL 傳遞。POST 用於建立新資源，不是冪等的，參數透過 request body 傳遞。",
+      "source_section": "3.1 HTTP Methods"
+    },
+    {
+      "id": 4,
+      "type": "multiple_choice",
+      "difficulty": "medium",
+      "question": "RESTful API 中，哪個 HTTP 方法通常用於更新已存在的資源？",
+      "options": ["A) GET", "B) POST", "C) PUT", "D) DELETE"],
+      "correct_answer": "C",
+      "explanation": "PUT 方法用於更新或替換已存在的資源。",
+      "source_section": "3.1 HTTP Methods"
+    },
+    {
+      "id": 5,
+      "type": "qa",
+      "difficulty": "hard",
+      "question": "請說明 OAuth 2.0 的 Authorization Code Flow 的完整流程。",
+      "reference_answer": "1) 客戶端將使用者導向授權伺服器。2) 使用者授權後，授權伺服器回傳 authorization code 到 redirect URI。3) 客戶端用 authorization code 向授權伺服器換取 access token。4) 客戶端使用 access token 存取受保護的資源。",
+      "source_section": "5.2 OAuth 2.0"
+    }
+  ]
+}
