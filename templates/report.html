@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spec Benchmark 報告 - {{ exam_id }}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif; background: #f0f2f5; color: #333; }
+
+  .header {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    color: #fff; padding: 20px 30px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .header h1 { font-size: 1.4em; }
+  .header .meta { font-size: 0.95em; opacity: 0.85; }
+  .header .avg-score {
+    font-size: 2em; font-weight: bold;
+    padding: 8px 20px; border-radius: 12px;
+  }
+  .avg-green { background: rgba(46,204,113,0.25); color: #2ecc71; }
+  .avg-yellow { background: rgba(241,196,15,0.25); color: #f1c40f; }
+  .avg-red { background: rgba(231,76,60,0.25); color: #e74c3c; }
+
+  .container { display: flex; height: calc(100vh - 80px); }
+
+  .left-panel {
+    width: 240px; min-width: 240px;
+    background: #fff; border-right: 1px solid #e0e0e0;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .question-list {
+    flex: 1; overflow-y: auto; padding: 8px;
+  }
+  .q-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 12px; margin-bottom: 4px;
+    border-radius: 8px; cursor: pointer;
+    transition: background 0.15s;
+    font-size: 0.9em;
+  }
+  .q-item:hover { background: #f5f5f5; }
+  .q-item.active { background: #e8f0fe; font-weight: 600; }
+  .q-item .q-label { color: #555; }
+  .q-score {
+    font-weight: 700; padding: 2px 8px;
+    border-radius: 6px; font-size: 0.85em;
+  }
+  .score-green { background: #d5f5e3; color: #27ae60; }
+  .score-yellow { background: #fef9e7; color: #f39c12; }
+  .score-red { background: #fadbd8; color: #c0392b; }
+
+  .stats-box {
+    border-top: 1px solid #e0e0e0; padding: 14px;
+    font-size: 0.85em; background: #fafafa;
+  }
+  .stats-box .stat-row {
+    display: flex; justify-content: space-between;
+    margin-bottom: 4px;
+  }
+  .stats-box .stat-label { color: #888; }
+  .stats-box .stat-value { font-weight: 600; }
+
+  .right-panel {
+    flex: 1; overflow-y: auto; padding: 24px 32px;
+  }
+  .detail-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 20px; padding-bottom: 12px;
+    border-bottom: 2px solid #e0e0e0;
+  }
+  .detail-header h2 { font-size: 1.2em; }
+  .detail-score { font-size: 1.8em; font-weight: 700; }
+
+  .section { margin-bottom: 24px; }
+  .section-title {
+    font-size: 0.85em; font-weight: 700;
+    color: #888; text-transform: uppercase;
+    letter-spacing: 0.5px; margin-bottom: 8px;
+    padding-left: 2px;
+  }
+  .section-content {
+    background: #fff; border-radius: 10px;
+    padding: 16px 20px; border: 1px solid #e8e8e8;
+    line-height: 1.7; white-space: pre-wrap;
+    font-size: 0.95em;
+  }
+  .section-content.answer { border-left: 4px solid #3498db; }
+  .section-content.reference { border-left: 4px solid #2ecc71; }
+  .section-content.feedback { border-left: 4px solid #f39c12; }
+  .section-content.suggestion { border-left: 4px solid #9b59b6; }
+
+  .overall-panel {
+    background: #fff; border-top: 2px solid #e0e0e0;
+    padding: 20px 32px; margin-left: 240px;
+  }
+  .overall-panel .section-title { font-size: 1em; color: #1a1a2e; }
+  .overall-panel .section-content {
+    border-left: 4px solid #1a1a2e;
+    max-height: 300px; overflow-y: auto;
+  }
+
+  .badge {
+    display: inline-block; padding: 2px 10px;
+    border-radius: 12px; font-size: 0.8em; font-weight: 600;
+    margin-left: 8px;
+  }
+  .badge-qa { background: #ebf5fb; color: #2e86c1; }
+  .badge-mc { background: #f5eef8; color: #7d3c98; }
+  .badge-easy { background: #d5f5e3; color: #27ae60; }
+  .badge-medium { background: #fef9e7; color: #f39c12; }
+  .badge-hard { background: #fadbd8; color: #c0392b; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>Spec Benchmark 報告</h1>
+    <div class="meta">{{ timestamp }} | {{ config.question_bank }} | {{ config.mode }} 模式 ({{ config.total_questions }} 題)</div>
+  </div>
+  <div class="avg-score {% if average_score >= 80 %}avg-green{% elif average_score >= 60 %}avg-yellow{% else %}avg-red{% endif %}">
+    {{ "%.1f"|format(average_score) }} 分
+  </div>
+</div>
+
+<div class="container">
+  <div class="left-panel">
+    <div class="question-list" id="questionList">
+      {% for r in results %}
+      <div class="q-item {% if loop.first %}active{% endif %}" onclick="showQuestion({{ loop.index0 }})" id="q-{{ loop.index0 }}">
+        <span class="q-label">#{{ r.question_id }}</span>
+        <span class="q-score {% if r.score >= 80 %}score-green{% elif r.score >= 60 %}score-yellow{% else %}score-red{% endif %}">
+          {{ r.score }} 分
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="stats-box">
+      <div class="stat-row"><span class="stat-label">平均</span><span class="stat-value">{{ "%.1f"|format(average_score) }}</span></div>
+      <div class="stat-row"><span class="stat-label">最高</span><span class="stat-value">{{ max_score }}</span></div>
+      <div class="stat-row"><span class="stat-label">最低</span><span class="stat-value">{{ min_score }}</span></div>
+      <div class="stat-row"><span class="stat-label">及格率</span><span class="stat-value">{{ "%.0f"|format(pass_rate) }}%</span></div>
+    </div>
+  </div>
+
+  <div class="right-panel" id="rightPanel">
+  </div>
+</div>
+
+<div class="overall-panel">
+  <div class="section-title">綜合改善建議</div>
+  <div class="section-content suggestion">{{ overall_suggestion }}</div>
+</div>
+
+<script>
+const DATA = {{ results_json }};
+
+function showQuestion(idx) {
+  document.querySelectorAll('.q-item').forEach(el => el.classList.remove('active'));
+  document.getElementById('q-' + idx).classList.add('active');
+
+  const r = DATA[idx];
+  const typeLabel = r.type === 'multiple_choice' ? '選擇題' : '問答題';
+  const typeBadge = r.type === 'multiple_choice' ? 'badge-mc' : 'badge-qa';
+  const diffBadge = 'badge-' + (r.difficulty || 'medium');
+  const diffLabel = {'easy':'簡單','medium':'中等','hard':'困難'}[r.difficulty||'medium'];
+
+  const scoreClass = r.score >= 80 ? 'score-green' : (r.score >= 60 ? 'score-yellow' : 'score-red');
+
+  let questionText = r.question;
+  if (r.options) {
+    questionText += '\n\n' + r.options.join('\n');
+  }
+
+  document.getElementById('rightPanel').innerHTML = `
+    <div class="detail-header">
+      <h2>第 ${r.question_id} 題
+        <span class="badge ${typeBadge}">${typeLabel}</span>
+        <span class="badge ${diffBadge}">${diffLabel}</span>
+      </h2>
+      <span class="detail-score ${scoreClass}">${r.score}/100</span>
+    </div>
+    <div class="section">
+      <div class="section-title">題目</div>
+      <div class="section-content">${escHtml(questionText)}</div>
+    </div>
+    <div class="section">
+      <div class="section-title">標準答案</div>
+      <div class="section-content reference">${escHtml(r.reference_answer)}</div>
+    </div>
+    <div class="section">
+      <div class="section-title">答題者回答</div>
+      <div class="section-content answer">${escHtml(r.examinee_answer)}</div>
+    </div>
+    <div class="section">
+      <div class="section-title">裁判評語</div>
+      <div class="section-content feedback">${escHtml(r.judge_feedback)}</div>
+    </div>
+    <div class="section">
+      <div class="section-title">改善建議</div>
+      <div class="section-content suggestion">${escHtml(r.improvement_suggestion)}</div>
+    </div>
+  `;
+}
+
+function escHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+
+showQuestion(0);
+</script>
+</body>
+</html>
