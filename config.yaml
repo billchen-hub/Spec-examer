@@ -1,0 +1,22 @@
+nexus:
+  base_url: "http://ainexus.phison.com:5155"
+
+credentials:
+  examinee:
+    user_key: "YOUR_EXAMINEE_USER_KEY"
+    share_code: "YOUR_EXAMINEE_SHARE_CODE"
+  judge:
+    user_key: "YOUR_JUDGE_USER_KEY"
+    share_code: "YOUR_JUDGE_SHARE_CODE"
+
+exam:
+  question_bank: "question_bank/example_5q.json"
+  default_mode: "full"
+  default_random_count: 20
+  default_question_count: 100
+
+paths:
+  specs_dir: "specs/"
+  question_bank_dir: "question_bank/"
+  results_dir: "results/"
+  prompts_dir: "prompts/"
