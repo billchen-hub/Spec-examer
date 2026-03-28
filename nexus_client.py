@@ -64,6 +64,46 @@ class NexusClient:
             logger.error(f"LLM generation error: {e}")
             return "抱歉，Robot 詢問 AI Nexus 時出錯了，請稍後再試。"
 
+    def generate_response_sync(self, share_code: str, history: List[Dict], system_prompt: str = None, files: List[Dict] = []) -> str:
+        """Synchronous version of generate_response for CLI usage."""
+        try:
+            url = f"{self.base_url}/api/external/v1/callAgent/json"
+            messages = [{"role": 0, "message": system_prompt}] if system_prompt else []
+
+            for msg in history:
+                messages.append({
+                    "role": msg["role"],
+                    "message": msg["content"]
+                })
+
+            headers = {
+                'Content-Type': 'application/json',
+                'X-API-Key': self.api_key
+            }
+            payload = {
+                'shareCode': share_code,
+                'prompt': "<<<" + messages[-1]['message'] + ">>>",
+                'previousMessage': messages[:-1],
+                'files': files
+            }
+
+            response = requests.post(url, headers=headers, json=payload, timeout=120)
+            response.raise_for_status()
+
+            response_data = response.json()
+            logger.info(f"API Response: {json.dumps(response_data, indent=2, ensure_ascii=False)[:500]}")
+
+            return response_data['content']
+        except requests.exceptions.Timeout:
+            logger.error("Nexus API timeout")
+            return "[ERROR] Nexus API 請求逾時，請稍後再試。"
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Post request error: {e}")
+            return f"[ERROR] Nexus API 請求錯誤: {e}"
+        except Exception as e:
+            logger.error(f"LLM generation error: {e}")
+            return f"[ERROR] LLM 產生回應時出錯: {e}"
+
     async def upload_file(self, path: str) -> int:
         try:
             url = f"{self.base_url}/api/external/v1/Files/upload"
