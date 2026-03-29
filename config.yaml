@@ -10,7 +10,7 @@ credentials:
     share_code: "YOUR_JUDGE_SHARE_CODE"
 
 exam:
-  question_bank: "question_bank/example_5q.json"
+  question_bank: "question_bank/ufs_spec_v4.1_100q.json"
   default_mode: "full"
   default_random_count: 20
   default_question_count: 100
