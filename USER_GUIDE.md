@@ -31,31 +31,47 @@ exam:
 
 ### 3. 執行考試
 
-雙擊 `run_exam.bat`，或手動執行：
+雙擊 `run_exam.bat`，選擇模式：
+
+- **模式 1：完整考試** — Nexus 答題 + Nexus 評分（需要裁判的 share_code）
+- **模式 2：僅答題** — Nexus 答題，帶回 Claude Code 評分（不需要裁判 share_code）
+
+或手動執行：
 
 ```bash
+# 完整考試（答題 + Nexus 評分）
 python exam_runner.py
-```
 
-進階選項（覆蓋 config 設定）：
+# 僅答題（帶回 Claude Code 評分）
+python exam_runner.py --answer-only
 
-```bash
-# 隨機抽 30 題
-python exam_runner.py --mode random --count 30
-
-# 指定不同題庫
+# 進階選項
+python exam_runner.py --answer-only --mode random --count 30
 python exam_runner.py --bank question_bank/other.json
 ```
 
 ### 4. 查看報告
 
-考試完成後，報告會存在 `results/` 資料夾：
+**完整考試模式** — 報告存在 `results/`：
 
 | 檔案 | 說明 |
 |------|------|
 | `exam_YYYYMMDD_HHMMSS.html` | 視覺化報告，雙擊開啟 |
 | `exam_YYYYMMDD_HHMMSS.json` | 結構化資料，程式可讀 |
 | `exam_YYYYMMDD_HHMMSS_suggestions.md` | 改善建議，可直接複製貼上 |
+
+**僅答題模式** — 答案存在 `results/`：
+
+| 檔案 | 說明 |
+|------|------|
+| `answers_YYYYMMDD_HHMMSS.json` | 答案 JSON，帶回 Claude Code 評分 |
+
+### 5. Claude Code 評分（僅答題模式的下一步）
+
+1. 將 `answers_xxx.json` 帶回有 Claude Code 的電腦
+2. 放入專案的 `results/` 資料夾
+3. 開啟 Claude Code，跟 Claude 說：「幫我評分 results/answers_xxx.json」
+4. Claude 會逐題評分並產出完整報告（HTML + JSON + suggestions.md）
 
 ---
 
