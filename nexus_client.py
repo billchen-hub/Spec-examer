@@ -91,7 +91,7 @@ class NexusClient:
             response.raise_for_status()
 
             response_data = response.json()
-            logger.info(f"API Response: {json.dumps(response_data, indent=2, ensure_ascii=False)[:500]}")
+            logger.debug(f"API Response: {json.dumps(response_data, indent=2, ensure_ascii=False)[:500]}")
 
             return response_data['content']
         except requests.exceptions.Timeout:
