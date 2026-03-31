@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import random
+import re
 import sys
 from datetime import datetime
 from typing import Dict, List
@@ -28,6 +29,18 @@ def load_config(config_path: str = "config.yaml") -> Dict:
         return yaml.safe_load(f)
 
 
+def get_api_key(config: Dict, role: str = None) -> str:
+    """Get API key: shared key or per-role key (backward compatible)."""
+    creds = config["credentials"]
+    # Shared key (new format)
+    if "api_key" in creds:
+        return creds["api_key"]
+    # Per-role key (old format)
+    if role and role in creds and "user_key" in creds[role]:
+        return creds[role]["user_key"]
+    raise ValueError(f"No API key found in config for role: {role}")
+
+
 def select_questions(questions: List[Dict], mode: str, random_count: int) -> List[Dict]:
     """Select questions based on mode: 'full' returns all, 'random' samples random_count."""
     if mode == "random":
@@ -40,6 +53,136 @@ def _save_json_atomic(path: str, data: Dict):
     """Write JSON file (overwrite)."""
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+# ─── Generate Questions Mode ──────────────────────────────
+def run_generate(config: Dict, spec_file: str, num_questions: int = None):
+    """Use Nexus AI to generate questions from a spec file."""
+
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    prompts_dir = os.path.join(base_dir, config["paths"]["prompts_dir"])
+    bank_dir = os.path.join(base_dir, config["paths"]["question_bank_dir"])
+    os.makedirs(bank_dir, exist_ok=True)
+
+    num_questions = num_questions or config["exam"].get("default_question_count", 100)
+
+    # Resolve spec file path
+    if not os.path.isabs(spec_file):
+        spec_path = os.path.join(base_dir, spec_file)
+    else:
+        spec_path = spec_file
+
+    if not os.path.exists(spec_path):
+        print(f"  ERROR: Spec file not found: {spec_path}")
+        return None
+
+    print(f"  Spec file: {os.path.basename(spec_path)}")
+    print(f"  Questions to generate: {num_questions}")
+    print()
+
+    # Read spec content
+    print(f"  Reading spec file...", end=" ", flush=True)
+    with open(spec_path, "r", encoding="utf-8") as f:
+        spec_content = f.read()
+    print(f"Done ({len(spec_content)} chars)")
+
+    # Load examiner prompt
+    prompt_loader = PromptLoader(prompts_dir)
+    examiner_prompt = prompt_loader.render("examiner", {
+        "num_questions": str(num_questions),
+    })
+
+    # Combine prompt + spec content
+    full_prompt = examiner_prompt + "\n\n--- SPEC CONTENT ---\n\n" + spec_content
+
+    # Call Nexus
+    api_key = get_api_key(config, "examiner")
+    examiner_share_code = config["credentials"]["examiner"]["share_code"]
+    client = NexusClient(api_key)
+
+    print(f"  Calling Nexus AI to generate questions...", end=" ", flush=True)
+    history = [{"role": 1, "content": full_prompt}]
+    response = client.generate_response_sync(examiner_share_code, history)
+    print("Done")
+
+    if response.startswith("[ERROR]"):
+        print(f"  {response}")
+        return None
+
+    # Parse JSON from response
+    print(f"  Parsing response...", end=" ", flush=True)
+    questions = _parse_questions_response(response)
+
+    if not questions:
+        # Save raw response for debugging
+        raw_path = os.path.join(bank_dir, f"raw_response_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt")
+        with open(raw_path, "w", encoding="utf-8") as f:
+            f.write(response)
+        print(f"FAILED")
+        print(f"  Could not parse questions from response.")
+        print(f"  Raw response saved: {raw_path}")
+        return None
+
+    print(f"OK ({len(questions)} questions)")
+
+    # Save question bank
+    spec_name = os.path.splitext(os.path.basename(spec_path))[0]
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"{spec_name}_{len(questions)}q_{timestamp}.json"
+    bank_path = os.path.join(bank_dir, filename)
+
+    bank_data = {
+        "metadata": {
+            "spec_file": os.path.basename(spec_path),
+            "generated_at": datetime.now().isoformat(),
+            "generated_by": "nexus",
+            "examiner_share_code": examiner_share_code,
+            "total_questions": len(questions),
+        },
+        "questions": questions,
+    }
+    _save_json_atomic(bank_path, bank_data)
+
+    print()
+    print(f"  Question bank saved: {bank_path}")
+    print(f"  Total questions: {len(questions)}")
+    print()
+    print(f"  To use this bank, update config.yaml:")
+    print(f'    question_bank: "question_bank/{filename}"')
+
+    return bank_data
+
+
+def _parse_questions_response(response: str) -> list:
+    """Try to extract questions JSON array from Nexus response."""
+    # Try 1: full JSON with "questions" key
+    try:
+        data = json.loads(response)
+        if isinstance(data, dict) and "questions" in data:
+            return data["questions"]
+        if isinstance(data, list):
+            return data
+    except json.JSONDecodeError:
+        pass
+
+    # Try 2: find JSON block in response
+    patterns = [
+        r'\{\s*"questions"\s*:\s*\[.*?\]\s*\}',  # {"questions": [...]}
+        r'\[.*?\]',  # bare array
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, response, re.DOTALL)
+        if match:
+            try:
+                data = json.loads(match.group())
+                if isinstance(data, dict) and "questions" in data:
+                    return data["questions"]
+                if isinstance(data, list) and len(data) > 0:
+                    return data
+            except json.JSONDecodeError:
+                continue
+
+    return None
 
 
 # ─── Answer Only Mode ──────────────────────────────────────
@@ -69,7 +212,8 @@ def run_answer_only(config: Dict, mode_override: str = None, count_override: int
 
     prompt_loader = PromptLoader(prompts_dir)
 
-    examinee_client = NexusClient(config["credentials"]["examinee"]["user_key"])
+    api_key = get_api_key(config, "examinee")
+    examinee_client = NexusClient(api_key)
     examinee_share_code = config["credentials"]["examinee"]["share_code"]
 
     now = datetime.now()
@@ -87,7 +231,6 @@ def run_answer_only(config: Dict, mode_override: str = None, count_override: int
         "answers": [],
     }
 
-    # Save empty file first
     _save_json_atomic(answers_path, answers_data)
 
     for i, q in enumerate(questions):
@@ -111,7 +254,6 @@ def run_answer_only(config: Dict, mode_override: str = None, count_override: int
         })
         answers_data["completed_questions"] = q_num
 
-        # Save after each question
         _save_json_atomic(answers_path, answers_data)
 
         is_error = examinee_answer.startswith("[ERROR]")
@@ -155,17 +297,18 @@ def run_exam(config: Dict, mode_override: str = None, count_override: int = None
 
     prompt_loader = PromptLoader(prompts_dir)
 
-    examinee_client = NexusClient(config["credentials"]["examinee"]["user_key"])
+    api_key = get_api_key(config, "examinee")
+    examinee_client = NexusClient(api_key)
     examinee_share_code = config["credentials"]["examinee"]["share_code"]
 
-    judge_client = NexusClient(config["credentials"]["judge"]["user_key"])
+    judge_api_key = get_api_key(config, "judge")
+    judge_client = NexusClient(judge_api_key)
     judge_share_code = config["credentials"]["judge"]["share_code"]
     judge = Judge(judge_client, judge_share_code, prompt_loader)
 
     now = datetime.now()
     exam_id = f"exam_{now.strftime('%Y%m%d_%H%M%S')}"
 
-    # Also prepare answers.json for later re-judging
     answers_path = os.path.join(results_dir, f"answers_{now.strftime('%Y%m%d_%H%M%S')}.json")
     answers_data = {
         "exam_id": f"answers_{now.strftime('%Y%m%d_%H%M%S')}",
@@ -196,7 +339,6 @@ def run_exam(config: Dict, mode_override: str = None, count_override: int = None
         print(f"  [{q_num}/{total}] Answering Q{q['id']}...", end=" ", flush=True)
         examinee_answer = examinee_client.generate_response_sync(examinee_share_code, history)
 
-        # Save answer incrementally
         answers_data["answers"].append({
             "question_id": q["id"],
             "examinee_answer": examinee_answer,
@@ -267,10 +409,17 @@ def run_exam(config: Dict, mode_override: str = None, count_override: int = None
 def main():
     parser = argparse.ArgumentParser(description="Spec Benchmark Exam System")
     parser.add_argument("--config", default="config.yaml", help="Config file path")
+
+    # Exam mode args
     parser.add_argument("--mode", choices=["full", "random"], help="Exam mode (overrides config)")
     parser.add_argument("--count", type=int, help="Random question count (overrides config)")
     parser.add_argument("--bank", help="Question bank file path (overrides config)")
-    parser.add_argument("--answer-only", action="store_true", help="Answer only, no judging. Output answers JSON for later evaluation")
+    parser.add_argument("--answer-only", action="store_true", help="Answer only, no judging")
+
+    # Generate mode args
+    parser.add_argument("--generate", metavar="SPEC_FILE", help="Generate questions from spec file via Nexus AI")
+    parser.add_argument("--num-questions", type=int, help="Number of questions to generate (default from config)")
+
     args = parser.parse_args()
 
     print()
@@ -280,16 +429,20 @@ def main():
 
     config = load_config(args.config)
 
-    if args.answer_only:
+    if args.generate:
+        print("  >> Generate mode (Nexus AI creates questions)")
+        print("=" * 50)
+        print()
+        run_generate(config, spec_file=args.generate, num_questions=args.num_questions)
+    elif args.answer_only:
         print("  >> Answer-only mode (no judging)")
-    else:
-        print("  >> Full exam mode (answer + judge)")
-    print("=" * 50)
-    print()
-
-    if args.answer_only:
+        print("=" * 50)
+        print()
         run_answer_only(config, mode_override=args.mode, count_override=args.count, bank_override=args.bank)
     else:
+        print("  >> Full exam mode (answer + judge)")
+        print("=" * 50)
+        print()
         run_exam(config, mode_override=args.mode, count_override=args.count, bank_override=args.bank)
 
 

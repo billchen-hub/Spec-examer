@@ -2,11 +2,12 @@ nexus:
   base_url: "http://ainexus.phison.com:5155"
 
 credentials:
+  api_key: "YOUR_API_KEY"
+  examiner:
+    share_code: "YOUR_EXAMINER_SHARE_CODE"
   examinee:
-    user_key: "YOUR_EXAMINEE_USER_KEY"
     share_code: "YOUR_EXAMINEE_SHARE_CODE"
   judge:
-    user_key: "YOUR_JUDGE_USER_KEY"
     share_code: "YOUR_JUDGE_SHARE_CODE"
 
 exam:
