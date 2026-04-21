@@ -12,6 +12,7 @@
 |------|---------|
 | `exam_runner.py` | 考試主程式 CLI |
 | `examiner.py` | 出題輔助（Claude Code 用） |
+| `spec_loader.py` | 載入 spec 檔案/資料夾（PDF/MD/TXT/LOG），供 `--generate` 使用 |
 | `judge.py` | 裁判評分模組 |
 | `prompt_loader.py` | YAML prompt 模板載入 |
 | `report_generator.py` | 報告產生（HTML/JSON/MD） |
@@ -20,14 +21,21 @@
 | `prompts/*.yaml` | 可自訂的 prompt 模板 |
 
 ## Tech Stack
-Python 3.10+, requests, PyYAML, Jinja2
+Python 3.10+, requests, PyYAML, Jinja2, pypdf
 
 ## Development
 ```bash
 pip install -r requirements.txt
-python -m pytest tests/ -v    # 11 tests
+python -m pytest tests/ -v    # 30 tests
 python exam_runner.py --help  # CLI usage
 ```
+
+## Nexus 出題輸入格式
+`--generate` 接受**一或多個路徑**，檔案或資料夾皆可，並可混用：
+- 支援副檔名：`.pdf`、`.md`、`.txt`、`.log`
+- 資料夾遞迴掃描，自動跳過 `.git` / `__pycache__` / `node_modules` / `.venv` 等
+- 每個檔案會在送給 AI 時加上 `--- FILE: <相對路徑> ---` 分隔標頭
+- PDF 用 `pypdf` 抽文字；純圖片 PDF（無 OCR）會跳過並記錄警告
 
 ## 出題流程（在 Claude Code 中）
 1. 使用者把 spec 放入 `specs/`
