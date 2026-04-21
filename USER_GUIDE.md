@@ -75,11 +75,37 @@ python exam_runner.py --bank question_bank/other.json
 
 ---
 
-## 出題（需要 Claude Code）
+## 出題
 
-出題流程在 Claude Code session 中執行，不需要額外 API 費用。
+出題有兩種方式：**Claude Code 模式**（免 API 費用）或 **Nexus AI 模式**（用公司 LLM 自動出題）。
 
-### 步驟
+### 支援的輸入格式
+
+`--generate` 接受**任意數量**的檔案或資料夾路徑：
+
+- **檔案格式**：`.pdf`、`.md`、`.txt`、`.log`
+- **資料夾**：遞迴掃描，自動收集所有支援的檔案
+- **混用**：可以同時傳多個檔案、多個資料夾，或兩者混用
+
+### Nexus AI 出題（推薦）
+
+```bash
+# 單一檔案
+python exam_runner.py --generate specs/ufs_spec.pdf
+
+# 整個資料夾（遞迴掃描所有支援的檔案）
+python exam_runner.py --generate "specs/ufs spec md/"
+
+# 多個檔案/資料夾一次出題
+python exam_runner.py --generate specs/intro.md specs/chapters/ specs/appendix.pdf
+
+# 指定題數
+python exam_runner.py --generate specs/ufs_spec.pdf --num-questions 50
+```
+
+或雙擊 `run_exam.bat`，選擇模式 3，輸入檔案或資料夾路徑。
+
+### Claude Code 出題（免 API 費用）
 
 1. 把 spec 檔案放到 `specs/` 資料夾
 2. 開啟 Claude Code，進入本專案目錄
@@ -93,6 +119,8 @@ python exam_runner.py --bank question_bank/other.json
 - 出題不需要每次執行，題庫可重複使用
 - 預設出 100 題（60% 問答、40% 選擇）
 - 可修改 `prompts/examiner.yaml` 調整出題方式
+- 多檔案輸入會在每個檔案前加上 `--- FILE: <名稱> ---` 分隔，讓 AI 知道來源
+- 資料夾掃描會跳過 `.git` / `__pycache__` / `node_modules` 等常見忽略目錄
 
 ---
 

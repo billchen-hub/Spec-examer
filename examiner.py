@@ -19,24 +19,30 @@ import os
 from datetime import datetime
 from typing import Dict, List
 
+from spec_loader import collect_spec_files
+
 
 SPECS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "specs")
 BANK_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "question_bank")
 
 
 def list_specs() -> List[str]:
-    """列出 specs/ 中所有可用的 spec 檔案。"""
+    """列出 specs/ 中所有可用的 spec 檔案（含子資料夾，遞迴）。
+
+    回傳的路徑是相對於 specs/ 的 posix-style 路徑，例如：
+      "ufs_spec.pdf"
+      "ufs spec md/chapters/03_terms.md"
+    """
     if not os.path.exists(SPECS_DIR):
         os.makedirs(SPECS_DIR, exist_ok=True)
         return []
 
-    exts = {".pdf", ".md", ".txt", ".log"}
-    files = [
-        f for f in os.listdir(SPECS_DIR)
-        if os.path.isfile(os.path.join(SPECS_DIR, f))
-        and os.path.splitext(f)[1].lower() in exts
+    files = collect_spec_files([SPECS_DIR])
+    rel = [
+        os.path.relpath(f, SPECS_DIR).replace(os.sep, "/")
+        for f in files
     ]
-    return sorted(files)
+    return sorted(rel)
 
 
 def save_question_bank(questions: List[Dict], spec_file: str, num_questions: int = None) -> str:

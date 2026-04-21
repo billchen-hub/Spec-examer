@@ -14,6 +14,7 @@ from nexus_client import NexusClient
 from prompt_loader import PromptLoader
 from judge import Judge
 from report_generator import ReportGenerator
+from spec_loader import SpecLoadError, load_spec_content
 
 logging.basicConfig(
     level=logging.WARNING,
@@ -56,8 +57,32 @@ def _save_json_atomic(path: str, data: Dict):
 
 
 # ─── Generate Questions Mode ──────────────────────────────
-def run_generate(config: Dict, spec_file: str, num_questions: int = None):
-    """Use Nexus AI to generate questions from a spec file."""
+def _derive_bank_name(spec_inputs: List[str], base_dir: str) -> str:
+    """Pick a stem for the output question-bank filename.
+
+    Rules:
+      - Single file  -> its stem (e.g. "ufs_spec_v4.1")
+      - Single dir   -> the directory's basename
+      - Multiple     -> first input's stem + "_and_{n-1}_more"
+    """
+    def _stem(p: str) -> str:
+        path = p if os.path.isabs(p) else os.path.join(base_dir, p)
+        path = os.path.normpath(path)
+        if os.path.isdir(path):
+            return os.path.basename(path.rstrip(os.sep)) or "specs"
+        return os.path.splitext(os.path.basename(path))[0] or "specs"
+
+    if len(spec_inputs) == 1:
+        return _stem(spec_inputs[0]) or "specs"
+    return f"{_stem(spec_inputs[0])}_and_{len(spec_inputs) - 1}_more"
+
+
+def run_generate(config: Dict, spec_inputs: List[str], num_questions: int = None):
+    """Use Nexus AI to generate questions from one or more spec files/folders.
+
+    `spec_inputs` may mix files and directories. Supported extensions:
+    .pdf / .md / .txt / .log. Directories are scanned recursively.
+    """
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
     prompts_dir = os.path.join(base_dir, config["paths"]["prompts_dir"])
@@ -66,25 +91,30 @@ def run_generate(config: Dict, spec_file: str, num_questions: int = None):
 
     num_questions = num_questions or config["exam"].get("default_question_count", 100)
 
-    # Resolve spec file path
-    if not os.path.isabs(spec_file):
-        spec_path = os.path.join(base_dir, spec_file)
-    else:
-        spec_path = spec_file
+    # Resolve inputs relative to project root if not absolute.
+    resolved_inputs = [
+        p if os.path.isabs(p) else os.path.join(base_dir, p)
+        for p in spec_inputs
+    ]
 
-    if not os.path.exists(spec_path):
-        print(f"  ERROR: Spec file not found: {spec_path}")
-        return None
-
-    print(f"  Spec file: {os.path.basename(spec_path)}")
+    print(f"  Spec inputs: {len(spec_inputs)}")
+    for p in spec_inputs:
+        print(f"    - {p}")
     print(f"  Questions to generate: {num_questions}")
     print()
 
-    # Read spec content
-    print(f"  Reading spec file...", end=" ", flush=True)
-    with open(spec_path, "r", encoding="utf-8") as f:
-        spec_content = f.read()
-    print(f"Done ({len(spec_content)} chars)")
+    # Load spec content (handles PDF + text, files + folders).
+    print(f"  Reading spec files...", end=" ", flush=True)
+    try:
+        spec = load_spec_content(resolved_inputs, base_dir=base_dir)
+    except SpecLoadError as e:
+        print("FAILED")
+        print(f"  ERROR: {e}")
+        return None
+    file_count = len(spec["files"])
+    print(f"Done ({file_count} file(s), {spec['total_chars']} chars)")
+    for display, text in spec["files"]:
+        print(f"    - {display} ({len(text)} chars)")
 
     # Load examiner prompt
     prompt_loader = PromptLoader(prompts_dir)
@@ -93,7 +123,7 @@ def run_generate(config: Dict, spec_file: str, num_questions: int = None):
     })
 
     # Combine prompt + spec content
-    full_prompt = examiner_prompt + "\n\n--- SPEC CONTENT ---\n\n" + spec_content
+    full_prompt = examiner_prompt + "\n\n--- SPEC CONTENT ---\n\n" + spec["combined"]
 
     # Call Nexus
     api_key = get_api_key(config, "examiner")
@@ -126,14 +156,18 @@ def run_generate(config: Dict, spec_file: str, num_questions: int = None):
     print(f"OK ({len(questions)} questions)")
 
     # Save question bank
-    spec_name = os.path.splitext(os.path.basename(spec_path))[0]
+    stem = _derive_bank_name(spec_inputs, base_dir)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"{spec_name}_{len(questions)}q_{timestamp}.json"
+    filename = f"{stem}_{len(questions)}q_{timestamp}.json"
     bank_path = os.path.join(bank_dir, filename)
 
+    source_files = [display for display, _ in spec["files"]]
     bank_data = {
         "metadata": {
-            "spec_file": os.path.basename(spec_path),
+            # Keep legacy "spec_file" field so older consumers don't break.
+            "spec_file": source_files[0] if len(source_files) == 1 else f"{len(source_files)} files",
+            "spec_inputs": spec_inputs,
+            "source_files": source_files,
             "generated_at": datetime.now().isoformat(),
             "generated_by": "nexus",
             "examiner_share_code": examiner_share_code,
@@ -417,7 +451,14 @@ def main():
     parser.add_argument("--answer-only", action="store_true", help="Answer only, no judging")
 
     # Generate mode args
-    parser.add_argument("--generate", metavar="SPEC_FILE", help="Generate questions from spec file via Nexus AI")
+    parser.add_argument(
+        "--generate",
+        nargs="+",
+        metavar="SPEC_PATH",
+        help="Generate questions from one or more spec files or folders "
+             "(supports .pdf/.md/.txt/.log; folders are scanned recursively) "
+             "via Nexus AI",
+    )
     parser.add_argument("--num-questions", type=int, help="Number of questions to generate (default from config)")
 
     args = parser.parse_args()
@@ -433,7 +474,7 @@ def main():
         print("  >> Generate mode (Nexus AI creates questions)")
         print("=" * 50)
         print()
-        run_generate(config, spec_file=args.generate, num_questions=args.num_questions)
+        run_generate(config, spec_inputs=args.generate, num_questions=args.num_questions)
     elif args.answer_only:
         print("  >> Answer-only mode (no judging)")
         print("=" * 50)
