@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>Spec Benchmark Test — Engineering Handover</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    font-family: "Segoe UI", "Microsoft JhengHei", "PingFang TC", system-ui, sans-serif;
+    background: #0f1419;
+    color: #e6edf3;
+    overflow: hidden;
+  }
+  .deck { position: relative; width: 100vw; height: 100vh; }
+  .slide {
+    position: absolute; inset: 0;
+    padding: 56px 72px;
+    display: none;
+    flex-direction: column;
+    overflow: auto;
+  }
+  .slide.active { display: flex; }
+  .slide h1 {
+    font-size: 42px;
+    font-weight: 600;
+    color: #79c0ff;
+    margin-bottom: 28px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid #30363d;
+  }
+  .slide h2 {
+    font-size: 28px;
+    font-weight: 600;
+    color: #f0f6fc;
+    margin: 24px 0 12px;
+  }
+  .slide h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #adbac7;
+    margin: 18px 0 8px;
+  }
+  .slide p, .slide li {
+    font-size: 18px;
+    line-height: 1.6;
+    color: #d1d7dd;
+  }
+  .slide ul, .slide ol {
+    padding-left: 28px;
+    margin: 8px 0 16px;
+  }
+  .slide li { margin-bottom: 8px; }
+  .slide code {
+    background: #1c2128;
+    color: #f0b72f;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: "Cascadia Code", "Consolas", "Menlo", monospace;
+    font-size: 0.92em;
+  }
+  .slide pre {
+    background: #1c2128;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 16px 20px;
+    margin: 12px 0;
+    font-family: "Cascadia Code", "Consolas", "Menlo", monospace;
+    font-size: 14px;
+    line-height: 1.55;
+    color: #d1d7dd;
+    overflow-x: auto;
+  }
+  .slide pre code {
+    background: transparent;
+    color: #d1d7dd;
+    padding: 0;
+    font-size: inherit;
+  }
+  .slide table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 15px;
+  }
+  .slide th, .slide td {
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 1px solid #30363d;
+    vertical-align: top;
+  }
+  .slide th {
+    background: #161b22;
+    color: #79c0ff;
+    font-weight: 600;
+  }
+  .slide td code { font-size: 13px; }
+  .cover {
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .cover .eyebrow {
+    font-size: 14px;
+    letter-spacing: 3px;
+    color: #79c0ff;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+  .cover h1 {
+    font-size: 64px;
+    color: #f0f6fc;
+    border: none;
+    padding: 0;
+    margin-bottom: 16px;
+    line-height: 1.15;
+  }
+  .cover .sub {
+    font-size: 22px;
+    color: #adbac7;
+    margin-bottom: 64px;
+  }
+  .cover .meta {
+    font-size: 15px;
+    color: #6e7681;
+    line-height: 1.9;
+    font-family: "Cascadia Code", "Consolas", monospace;
+  }
+  .cover .meta span { color: #79c0ff; }
+  .hud {
+    position: absolute;
+    bottom: 20px;
+    right: 32px;
+    font-size: 13px;
+    color: #6e7681;
+    font-family: "Cascadia Code", "Consolas", monospace;
+    z-index: 10;
+  }
+  .hud .sep { margin: 0 10px; color: #30363d; }
+  .nav-hint {
+    position: absolute;
+    bottom: 20px;
+    left: 32px;
+    font-size: 12px;
+    color: #484f58;
+    z-index: 10;
+  }
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-top: 8px;
+  }
+  .callout {
+    border-left: 3px solid #f0b72f;
+    padding: 8px 16px;
+    margin: 12px 0;
+    background: rgba(240, 183, 47, 0.08);
+    font-size: 16px;
+    color: #e6edf3;
+  }
+  .callout strong { color: #f0b72f; }
+  .danger {
+    border-left-color: #f85149;
+    background: rgba(248, 81, 73, 0.08);
+  }
+  .danger strong { color: #f85149; }
+  .good {
+    border-left-color: #3fb950;
+    background: rgba(63, 185, 80, 0.08);
+  }
+  .good strong { color: #3fb950; }
+  .role-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin: 16px 0;
+  }
+  .role-card {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 18px;
+  }
+  .role-card .role-name {
+    font-size: 18px;
+    font-weight: 600;
+    color: #79c0ff;
+    margin-bottom: 6px;
+  }
+  .role-card .role-impl {
+    font-size: 13px;
+    color: #6e7681;
+    font-family: "Cascadia Code", monospace;
+    margin-bottom: 10px;
+  }
+  .role-card .role-desc {
+    font-size: 14px;
+    color: #d1d7dd;
+    line-height: 1.5;
+  }
+  .flow {
+    font-family: "Cascadia Code", "Consolas", monospace;
+    font-size: 15px;
+    line-height: 1.7;
+    color: #d1d7dd;
+    white-space: pre;
+  }
+  .flow .arrow { color: #f0b72f; }
+  .flow .step { color: #79c0ff; }
+  .kbd {
+    display: inline-block;
+    background: #21262d;
+    border: 1px solid #30363d;
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    padding: 1px 7px;
+    font-family: "Cascadia Code", monospace;
+    font-size: 12px;
+    color: #adbac7;
+  }
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+
+  <!-- 01 Cover -->
+  <section class="slide cover active">
+    <div class="eyebrow">ENGINEERING HANDOVER &middot; 2026-04</div>
+    <h1>Spec Benchmark<br>Test System</h1>
+    <div class="sub">對 spec 文件評測 AI 理解力的三角色基準系統</div>
+    <div class="meta">
+      <span>Repo</span>      : Spec-examer (main)<br>
+      <span>Stack</span>     : Python 3.10+ / requests / PyYAML / Jinja2 / pypdf<br>
+      <span>LLM</span>       : Nexus (Phison internal) &rarr; Hermes + Qwen 3.5 (TBD)<br>
+      <span>Tests</span>     : 30 passed<br>
+      <span>Author</span>    : bill_chen<br>
+      <span>Reference</span> : HANDOVER.md &middot; USER_GUIDE.md &middot; CLAUDE.md
+    </div>
+  </section>
+
+  <!-- 02 一頁了解 -->
+  <section class="slide">
+    <h1>這個系統做什麼（一頁版）</h1>
+    <p style="font-size:22px; color:#f0f6fc;">
+      把 spec 文件丟進去 &rarr; AI 出題 &rarr; 另一個 AI 作答 &rarr; 再一個 AI 當裁判評分 &rarr; 產出報告與改善建議。
+    </p>
+    <h2>為什麼拆三個角色</h2>
+    <ul>
+      <li><strong>Examiner</strong> 產出題目 &mdash; 可用 Claude Code（免 API 費）或 Nexus AI（自動化）</li>
+      <li><strong>Examinee</strong> 是要被評測的目標（地端 AI，自帶 RAG）</li>
+      <li><strong>Judge</strong> 獨立於 Examinee 運作，避免「球員兼裁判」造成分數虛高</li>
+    </ul>
+    <h2>為什麼出題與考試流程是分開的</h2>
+    <ul>
+      <li>題庫是 JSON 檔，可以重用、手動編輯、跨 session 累積</li>
+      <li>答題和評分可拆到不同機器跑（<code>--answer-only</code> 模式）</li>
+      <li>Prompt 都走 YAML 模板 &mdash; 改出題/評分規則不用碰 Python</li>
+    </ul>
+  </section>
+
+  <!-- 03 三角色架構 -->
+  <section class="slide">
+    <h1>三角色架構</h1>
+    <div class="role-grid">
+      <div class="role-card">
+        <div class="role-name">Examiner</div>
+        <div class="role-impl">Claude Code / Nexus AI</div>
+        <div class="role-desc">
+          讀 spec &rarr; 產題庫 JSON。<br>
+          輸入：檔案或資料夾（可混合）<br>
+          副檔名：.pdf / .md / .txt / .log
+        </div>
+      </div>
+      <div class="role-card">
+        <div class="role-name">Examinee</div>
+        <div class="role-impl">Nexus AI (share_code)</div>
+        <div class="role-desc">
+          被評測對象。<br>
+          接題目 &rarr; 回答案。<br>
+          <strong>不帶 spec 給它</strong> &mdash; 它有自己的 RAG。
+        </div>
+      </div>
+      <div class="role-card">
+        <div class="role-name">Judge</div>
+        <div class="role-impl">Nexus AI (另一個 share_code)</div>
+        <div class="role-desc">
+          比對參考答案與實際答案。<br>
+          給 0-100 分 + feedback + 改善建議。<br>
+          最後再產出 overall suggestion。
+        </div>
+      </div>
+    </div>
+    <div class="callout">
+      <strong>關鍵</strong>：三個角色只透過 JSON 題庫 / answers.json 互通；彼此不共享 prompt、不共享狀態。要換任何一方（包括換到 Hermes）都是獨立工作。
+    </div>
+  </section>
+
+  <!-- 04 CLI 三種模式 -->
+  <section class="slide">
+    <h1>CLI 三種模式</h1>
+    <pre><code>python exam_runner.py [...]</code></pre>
+    <table>
+      <thead>
+        <tr><th>Flag</th><th>流程</th><th>輸出</th><th>用途</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>--generate PATH ...</code></td>
+          <td><code>run_generate()</code></td>
+          <td><code>question_bank/*.json</code></td>
+          <td>自動出題（Nexus）</td>
+        </tr>
+        <tr>
+          <td><code>--answer-only</code></td>
+          <td><code>run_answer_only()</code></td>
+          <td><code>results/answers_*.json</code></td>
+          <td>只答題，帶回 Claude Code 評分</td>
+        </tr>
+        <tr>
+          <td>（無 flag）</td>
+          <td><code>run_exam()</code></td>
+          <td>HTML + JSON + MD<br>三份報告</td>
+          <td>一站式：答題 + 評分 + 報告</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="callout">
+      <strong>為什麼有 <code>--answer-only</code></strong>：Nexus API 只能在公司網走；評分用 Claude Code 不花 API 額度 &mdash; 拆成兩階段就是為了這個場景。
+    </div>
+  </section>
+
+  <!-- 05 檔案責任矩陣 -->
+  <section class="slide">
+    <h1>檔案責任矩陣</h1>
+    <table>
+      <thead>
+        <tr><th>File</th><th>責任</th><th>改它的時機</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>exam_runner.py</code></td><td>CLI 主程式、argparse、流程編排</td><td>加新的 mode / flag</td></tr>
+        <tr><td><code>spec_loader.py</code></td><td>讀 spec（檔案/資料夾、PDF/文字）</td><td>支援新副檔名、加 OCR</td></tr>
+        <tr><td><code>examiner.py</code></td><td>Claude Code 出題輔助（列檔、存題庫）</td><td>改題庫命名規則</td></tr>
+        <tr><td><code>nexus_client.py</code></td><td>Nexus REST API HTTP 封裝</td><td><strong>換 LLM 後端就改這個</strong></td></tr>
+        <tr><td><code>judge.py</code></td><td>單題評分 + 綜合建議 + JSON 容錯 parse</td><td>改評分流程</td></tr>
+        <tr><td><code>prompt_loader.py</code></td><td>YAML 載入 + <code>{{var}}</code> 替換</td><td>幾乎不用改</td></tr>
+        <tr><td><code>report_generator.py</code></td><td>產 HTML / JSON / suggestions.md</td><td>報告格式調整</td></tr>
+        <tr><td><code>prompts/*.yaml</code></td><td>三角色的 prompt（行為定義）</td><td><strong>調風格/規則的主要位置</strong></td></tr>
+        <tr><td><code>config.yaml</code></td><td>認證、路徑、預設參數</td><td>換環境、加新參數</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 06 資料流 -->
+  <section class="slide">
+    <h1>資料流（end-to-end）</h1>
+    <h3>出題：<code>--generate</code></h3>
+<pre class="flow"><span class="step">paths</span> <span class="arrow">&rarr;</span> collect_spec_files()    <span class="step">(dedup by realpath)</span>
+     <span class="arrow">&rarr;</span> read_spec_file() × N    <span class="step">(pdf / text)</span>
+     <span class="arrow">&rarr;</span> combined = "--- FILE: a.md ---\n...\n\n--- FILE: b.md ---\n..."
+     <span class="arrow">&rarr;</span> examiner_prompt + combined <span class="arrow">&rarr;</span> NexusClient
+     <span class="arrow">&rarr;</span> _parse_questions_response() <span class="step">(multi-strategy regex)</span>
+     <span class="arrow">&rarr;</span> question_bank/&lt;stem&gt;_&lt;N&gt;q_&lt;ts&gt;.json</pre>
+    <h3>考試：預設 (<code>run_exam</code>)</h3>
+<pre class="flow"><span class="step">load bank</span> <span class="arrow">&rarr;</span> select_questions()   <span class="step">(full | random)</span>
+  for each q:
+    <span class="arrow">&rarr;</span> examinee prompt  <span class="arrow">&rarr;</span> NexusClient
+    <span class="arrow">&rarr;</span> <span class="step">persist answers.json after every question</span>
+    <span class="arrow">&rarr;</span> judge.score_answer()  <span class="arrow">&rarr;</span> NexusClient
+  <span class="arrow">&rarr;</span> judge.generate_overall_suggestion()
+  <span class="arrow">&rarr;</span> ReportGenerator.generate_all() <span class="step">(html / json / md)</span></pre>
+    <div class="callout good">
+      <strong>每題即時落盤 <code>answers.json</code></strong> 是刻意的 &mdash; Nexus 偶爾 timeout 或公司網路掉線，落盤後可以用 <code>--answer-only</code> 續跑或手動補評分。
+    </div>
+  </section>
+
+  <!-- 07 spec_loader 設計重點 -->
+  <section class="slide">
+    <h1><code>spec_loader.py</code> 設計重點</h1>
+    <p>2026-04-22 新加的模組（commit <code>96d4f04</code>），是 <code>--generate</code> 能吃多檔/資料夾/PDF/MD 混合輸入的核心。</p>
+    <h3>1. 去重用 <code>realpath</code> 不是 <code>abspath</code></h3>
+<pre><code>def _add(path):
+    key = os.path.realpath(path)   # 不是 abspath
+    if key in seen: return</code></pre>
+    <div class="callout">
+      <strong>為什麼</strong>：Windows junction / symlink 下，同檔不同路徑 abspath 不同但 realpath 相同。Code review 抓過的 major issue。
+    </div>
+    <h3>2. <code>_SKIP_DIRS</code> 只在遞迴子層生效</h3>
+    <p>使用者把 <code>tmp/</code> 當輸入 &rarr; 裡面的 <code>.git</code> 跳過。但<strong>直接</strong>把 <code>.git</code> 當輸入 &rarr; 照掃（尊重使用者意圖）。這個邊界有測試保護 <code>TestSkipDirsBoundary</code>。</p>
+    <h3>3. 全空內容要炸</h3>
+<pre><code>if non_empty == 0:
+    raise SpecLoadError("All N spec file(s) produced no extractable text ...")</code></pre>
+    <div class="callout danger">
+      <strong>為什麼</strong>：掃描版 PDF（沒 OCR）pypdf 回空。全空就拒絕送 prompt &mdash; 避免浪費 API 產垃圾。個別檔案空只 warning，不阻斷。
+    </div>
+  </section>
+
+  <!-- 08 Prompt 模板 -->
+  <section class="slide">
+    <h1>Prompt 模板機制</h1>
+    <div class="two-col">
+      <div>
+        <h3>結構</h3>
+<pre><code>name: "..."
+description: "..."
+template: |
+  ...{{variable}}...</code></pre>
+        <h3>替換規則</h3>
+        <ul>
+          <li>regex <code>\{\{(\s*\w+\s*)\}\}</code></li>
+          <li>找不到 key 的 placeholder 原樣保留（不會 KeyError）</li>
+          <li>只支援簡單 key &mdash; 不支援 <code>{{a.b}}</code></li>
+          <li>不是 jinja2 &mdash; 不支援 <code>{% if %}</code></li>
+        </ul>
+      </div>
+      <div>
+        <h3>加新角色的流程</h3>
+        <ol>
+          <li>新增 <code>prompts/&lt;role&gt;.yaml</code></li>
+          <li>上游呼叫 <code>prompt_loader.render("&lt;role&gt;", {...})</code></li>
+          <li>不用動 <code>prompt_loader.py</code></li>
+        </ol>
+        <div class="callout">
+          <strong>為什麼不用 jinja2</strong>：prompt 的邏輯應該用自然語言寫，不是模板分支。極簡是刻意的。要條件分支時再升級。
+        </div>
+      </div>
+    </div>
+    <h3>三份 prompt 各管什麼</h3>
+    <table>
+      <tr><td><code>examiner.yaml</code></td><td>題型比例、難度分佈、JSON 輸出 schema</td></tr>
+      <tr><td><code>examinee.yaml</code></td><td>答題口吻、要求引用章節編號</td></tr>
+      <tr><td><code>judge.yaml</code></td><td>評分權重（50/30/20）、JSON 輸出 schema；另含 <code>overall_template</code></td></tr>
+    </table>
+  </section>
+
+  <!-- 09 Nexus -> Hermes 遷移 -->
+  <section class="slide">
+    <h1>Nexus &rarr; Hermes 遷移路徑</h1>
+    <p>公司未來要切 Hermes agent + Qwen 3.5。<strong>不用重寫 &mdash; 就改一個檔</strong>：<code>nexus_client.py</code></p>
+    <h3>實際被呼叫的 method 只有一個</h3>
+<pre><code>def generate_response_sync(
+    self, share_code, history, system_prompt=None, files=[]
+) -&gt; str</code></pre>
+    <h3>遷移 checklist</h3>
+    <ol>
+      <li>建 <code>hermes_client.py</code> 或直接改 <code>nexus_client.py</code></li>
+      <li>保留 <strong>method 簽章</strong>（特別是回傳純字串、不是 dict）</li>
+      <li>錯誤分支要回 <code>"[ERROR] ..."</code> 開頭 &mdash; 上游用 <code>startswith</code> 判斷</li>
+      <li>Timeout handling 要保留（目前 sync = 120s）</li>
+      <li>Payload：現在是 <code>{shareCode, prompt, previousMessage, files}</code>；Hermes 若走 OpenAI-compat 就改成 <code>{messages: [...]}</code></li>
+      <li>Config.yaml 的 credentials 結構跟著調</li>
+    </ol>
+    <div class="callout">
+      <strong>為什麼現在不先抽 <code>LLMClient</code> interface</strong>：只有一家供應商時，抽象會讓讀者多跳一層找實作。等要接第二家時再 extract &mdash; YAGNI。
+    </div>
+  </section>
+
+  <!-- 10 JSON schema -->
+  <section class="slide">
+    <h1>資料格式（JSON Schema 摘要）</h1>
+    <h3><code>question_bank/*.json</code></h3>
+<pre><code>{
+  "metadata": {
+    "spec_file": "...", "spec_inputs": [...], "source_files": [...],
+    "generated_at": "...", "generated_by": "nexus", "total_questions": 100
+  },
+  "questions": [
+    { "id": 1, "type": "qa|multiple_choice", "difficulty": "easy|medium|hard",
+      "question": "...", "reference_answer": "...",
+      "options": [...], "correct_answer": "C", "explanation": "...",
+      "source_section": "..." }
+  ]
+}</code></pre>
+    <h3><code>results/answers_*.json</code>（即時落盤，可續跑）</h3>
+<pre><code>{ "exam_id": "...", "total_questions": 100, "completed_questions": 47,
+  "answers": [{ "question_id": 1, "examinee_answer": "..." }, ...] }</code></pre>
+    <h3><code>results/exam_*.json</code>（完整報告）</h3>
+<pre><code>{ "exam_id": "...", "average_score": 72.4,
+  "results": [{ ..., "score": 80, "judge_feedback": "...",
+                "improvement_suggestion": "..." }],
+  "overall_suggestion": "... 可直接當 system prompt 使用 ..." }</code></pre>
+  </section>
+
+  <!-- 11 測試 -->
+  <section class="slide">
+    <h1>測試覆蓋</h1>
+<pre><code>python -m pytest tests/ -v     # 30 passed</code></pre>
+    <table>
+      <thead><tr><th>檔案</th><th>數量</th><th>涵蓋</th></tr></thead>
+      <tbody>
+        <tr><td><code>test_spec_loader.py</code></td><td>19</td><td>檔案收集、realpath 去重、skip_dirs 邊界、UTF-8 / latin-1、PDF 空內容、混合輸入</td></tr>
+        <tr><td><code>test_exam_runner.py</code></td><td>若干</td><td><code>select_questions</code>、<code>_derive_bank_name</code>、<code>_parse_questions_response</code></td></tr>
+        <tr><td><code>test_prompt_loader.py</code></td><td>若干</td><td>YAML 載入、<code>{{var}}</code> 替換、缺漏變數保留</td></tr>
+        <tr><td><code>test_report_generator.py</code></td><td>若干</td><td>JSON / Markdown 產出、HTML 渲染</td></tr>
+      </tbody>
+    </table>
+    <h3>測試原則（接手後請保持）</h3>
+    <ul>
+      <li><strong>不 mock Nexus API</strong> &mdash; 測試完全不能需要網路。要驗 HTTP 行為就 mock <code>requests.post</code>。</li>
+      <li><strong>改 <code>_SKIP_DIRS</code> 前先跑 <code>TestSkipDirsBoundary</code></strong>。那份測試描述的是 contract，不是 bug。</li>
+      <li>空 PDF 行為有測試保護 &mdash; 個別空 &rarr; 空字串；全部空 &rarr; raise。</li>
+    </ul>
+  </section>
+
+  <!-- 12 已知限制與 Debug -->
+  <section class="slide">
+    <h1>已知限制 / Debug Tips</h1>
+    <div class="callout danger">
+      <strong>Windows cmd.exe 編碼雷</strong><br>
+      <code>.bat</code> / <code>.cmd</code> / <code>requirements.txt</code> <strong>一律純 ASCII</strong>。pip 在 Windows 用 cp950 讀 requirements.txt，UTF-8 非 ASCII 字元會 crash。
+    </div>
+    <div class="callout danger">
+      <strong>.bat <code>if</code> block 變數</strong><br>
+      要用 <code>setlocal EnableDelayedExpansion</code> + <code>!var!</code>，不是 <code>%var%</code>。Code review 抓過的 blocker。
+    </div>
+    <div class="callout">
+      <strong>掃描版 PDF 沒文字</strong><br>
+      pypdf 只抽 embedded text &mdash; 掃描版 PDF 會回空。解法：請使用者先 OCR 轉成 MD。<br>
+      （在 <code>spec_loader</code> 加 OCR 可行，但會帶入 Poppler / Tesseract 外部相依，目前不做。）
+    </div>
+    <div class="callout">
+      <strong>Nexus 回應 JSON 不穩</strong><br>
+      LLM 有機率回 markdown fence / 多段解釋 / 少大括號。多策略 regex 抽取：出題失敗 &rarr; 原始 response 存到 <code>raw_response_*.txt</code>；評分失敗 &rarr; score=0，不中斷整場考試。
+    </div>
+    <div class="callout good">
+      <strong>中途掉線可以續</strong><br>
+      <code>answers.json</code> 每題即時落盤。看 <code>completed_questions</code> 知道斷在哪 &rarr; 手動 slice 題庫 &rarr; <code>--answer-only</code> 續跑 &rarr; 合併後交 Claude Code 評分。
+    </div>
+  </section>
+
+  <!-- 13 擴展入口 -->
+  <section class="slide">
+    <h1>擴展入口</h1>
+    <table>
+      <thead><tr><th>想做</th><th>改哪裡</th></tr></thead>
+      <tbody>
+        <tr><td>支援新 spec 格式（如 <code>.docx</code>）</td><td><code>spec_loader.py</code> 的 <code>SUPPORTED_EXTS</code> + 新 <code>_read_xxx_file()</code></td></tr>
+        <tr><td>改出題風格 / 題型比例 / 難度分佈</td><td><code>prompts/examiner.yaml</code>（純文字）</td></tr>
+        <tr><td>改評分標準 / 權重</td><td><code>prompts/judge.yaml</code></td></tr>
+        <tr><td>換 LLM 後端（Hermes / OpenAI / Claude）</td><td><code>nexus_client.py</code>（保簽章）</td></tr>
+        <tr><td>加新角色（critic / fact-checker）</td><td>新 YAML + 上游呼叫</td></tr>
+        <tr><td>改 HTML 報告樣式</td><td><code>templates/report.html</code></td></tr>
+        <tr><td>支援 OCR</td><td><code>_read_pdf_file</code>（加 pytesseract fallback）</td></tr>
+      </tbody>
+    </table>
+    <h3>不建議從這裡進</h3>
+    <ul>
+      <li>把 <code>exam_runner.py</code> 拆成 service class &mdash; CLI 腳本平鋪好讀，不要過度 OO</li>
+      <li>把 prompt 搬進 <code>.py</code> &mdash; 會破壞「非工程師也能改 prompt」的核心價值</li>
+    </ul>
+  </section>
+
+  <!-- 14 起手式 -->
+  <section class="slide">
+    <h1>接手第一週</h1>
+    <h2>Day 1</h2>
+    <ol>
+      <li><code>git clone</code> &rarr; <code>pip install -r requirements.txt</code></li>
+      <li><code>python -m pytest tests/ -v</code> &rarr; 30 passed</li>
+      <li>看 <code>USER_GUIDE.md</code> 跑一次 end-to-end（<code>example_5q.json</code> 就夠）</li>
+      <li>看 <code>HANDOVER.md §3</code> 檔案責任矩陣 &rarr; 對照 <code>exam_runner.py::main</code> 追 <code>run_exam</code> 的資料流</li>
+      <li>看 <code>spec_loader.py</code> + 對應測試（這塊最新、也最容易誤改）</li>
+      <li>瀏覽 <code>prompts/*.yaml</code> &mdash; 這是系統的「行為定義」</li>
+    </ol>
+    <h2>Week 1 小任務（難度遞增）</h2>
+    <ul>
+      <li>改 <code>examiner.yaml</code> 題型比例 &rarr; 跑 <code>--generate</code> 驗證</li>
+      <li>加一題 <code>test_spec_loader.py</code> 的邊界測試</li>
+      <li>換題庫跑 <code>run_exam</code>，試改 <code>templates/report.html</code></li>
+    </ul>
+    <div class="callout">
+      <strong>碰 <code>nexus_client.py</code> / <code>exam_runner.py</code> 主流程前</strong>，把 HANDOVER.md §5 §6 §11 讀完，避免踩前人踩過的坑。
+    </div>
+  </section>
+
+  <!-- 15 Q&A -->
+  <section class="slide cover">
+    <div class="eyebrow">QUESTIONS</div>
+    <h1>問題 / 下一步</h1>
+    <div class="sub">有問題 &mdash; 先看 HANDOVER.md §11 debug tips</div>
+    <div class="meta" style="margin-top: 48px;">
+      <span>Files</span>     : HANDOVER.md &middot; USER_GUIDE.md &middot; CLAUDE.md<br>
+      <span>Tests</span>     : <code>python -m pytest tests/ -v</code><br>
+      <span>Quick</span>     : <code>python exam_runner.py --help</code><br>
+      <span>Contact</span>   : bill_chen<br>
+      <span>Next</span>      : 遷移到 Hermes + Qwen 3.5（<code>nexus_client.py</code> 改一個檔）
+    </div>
+  </section>
+
+</div>
+
+<div class="hud">
+  <span id="page">1</span><span class="sep">/</span><span id="total">15</span>
+</div>
+<div class="nav-hint">
+  <span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> 切換頁面 &middot;
+  <span class="kbd">Space</span> 下一頁 &middot;
+  <span class="kbd">Home</span>/<span class="kbd">End</span> 跳至頭尾
+</div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const pageEl = document.getElementById('page');
+  const totalEl = document.getElementById('total');
+  totalEl.textContent = slides.length;
+
+  let idx = 0;
+  function show(i) {
+    idx = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach((s, k) => s.classList.toggle('active', k === idx));
+    pageEl.textContent = idx + 1;
+    location.hash = '#' + (idx + 1);
+  }
+
+  window.addEventListener('keydown', (e) => {
+    switch (e.key) {
+      case 'ArrowRight':
+      case 'PageDown':
+      case ' ':
+        e.preventDefault(); show(idx + 1); break;
+      case 'ArrowLeft':
+      case 'PageUp':
+        e.preventDefault(); show(idx - 1); break;
+      case 'Home':
+        e.preventDefault(); show(0); break;
+      case 'End':
+        e.preventDefault(); show(slides.length - 1); break;
+    }
+  });
+
+  const fromHash = parseInt((location.hash || '#1').slice(1), 10);
+  if (!Number.isNaN(fromHash)) show(fromHash - 1);
+</script>
+</body>
+</html>

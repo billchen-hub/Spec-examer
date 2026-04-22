@@ -19,6 +19,9 @@
 | `nexus_client.py` | Nexus REST API 封裝 |
 | `config.yaml` | 全域設定（認證、路徑、考試參數） |
 | `prompts/*.yaml` | 可自訂的 prompt 模板 |
+| `USER_GUIDE.md` | 使用者操作面文件 |
+| `HANDOVER.md` | 工程師向交接文件（架構、資料流、擴展點、debug tips） |
+| `docs/handover_slides.html` | 工程師交接用自包含 HTML 投影片（15 頁，鍵盤左右切換） |
 
 ## Tech Stack
 Python 3.10+, requests, PyYAML, Jinja2, pypdf
