@@ -1,0 +1,1825 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spec Benchmark System — Project Intro</title>
+<!--
+  ============================================================
+  Phison-style internal handover deck.
+  Single-file HTML. Open in browser. Keyboard: ← / → / Space / Home / End.
+
+  External dependency: Google Fonts CDN (Barlow Condensed / IBM Plex Sans /
+  JetBrains Mono / Noto Sans TC). Offline use will fall back to system fonts
+  (Microsoft JhengHei / Arial Narrow / Consolas) — layout stays intact, only
+  typography degrades. To go fully offline, self-host the font files and
+  swap the <link href="https://fonts.googleapis.com..."> below.
+  ============================================================
+  HOW TO EDIT (quick map)
+  - Brand color           : :root  --phison-orange
+  - Dark section bg       : :root  --accent-navy
+  - Cover title text      : <section id="s1"> ... cover-title
+  - Slide content         : Each <section class="slide" id="sN"> block
+  - Add a slide           : duplicate any <section class="slide"> and bump id
+  - Page count in HUD     : updates automatically
+  - Footer label          : .footer at bottom of each slide
+  - Hash deep-link        : #s7 (preferred) or #7 (legacy) both work
+  ============================================================
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* === BRAND TOKENS — edit here to re-skin === */
+  --phison-orange:      #EE7623;
+  --phison-orange-deep: #C75510;
+  --accent-navy:        #0E1622;
+
+  --ink:        #1A1A1A;
+  --ink-soft:   #4A4A4A;
+  --ink-mute:   #8A8A8A;
+  --surface:    #FFFFFF;
+  --surface-alt:#F4F2EE;
+  --rule:       #E5E2DB;
+  --rule-strong:#C8C4BB;
+
+  /* spacing */
+  --space-xs: 0.5rem;
+  --space-sm: 1rem;
+  --space-md: 1.5rem;
+  --space-lg: 2.5rem;
+  --space-xl: 4rem;
+
+  /* typography */
+  --display: 'Barlow Condensed', 'Arial Narrow', 'Microsoft JhengHei', sans-serif;
+  --body:    'IBM Plex Sans', 'Microsoft JhengHei', 'Noto Sans TC', sans-serif;
+  --mono:    'JetBrains Mono', 'Consolas', 'Courier New', monospace;
+  --cjk:     'Noto Sans TC', 'Microsoft JhengHei', 'PingFang TC', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body { height: 100%; overflow: hidden; }
+
+body {
+  font-family: var(--body);
+  background: var(--ink);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'kern' 1, 'liga' 1;
+}
+
+.deck { position: relative; width: 100vw; height: 100vh; }
+
+.slide {
+  position: absolute;
+  inset: 0;
+  background: var(--surface);
+  display: none;
+  overflow: hidden;
+  animation: slideIn 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  padding: 7rem 4rem 4.5rem;
+  flex-direction: column;
+}
+.slide.active { display: flex; }
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* === Persistent HUD === */
+.hud {
+  position: fixed;
+  z-index: 200;
+  bottom: 1.6rem;
+  right: 2rem;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.16em;
+  color: var(--ink-mute);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  pointer-events: none;
+  mix-blend-mode: difference;
+  filter: invert(1);
+}
+.hud .now {
+  color: var(--phison-orange);
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+.hud .sep { width: 24px; height: 1px; background: currentColor; opacity: 0.5; }
+
+/* === Common slide chrome === */
+.brand-stripe {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 6px;
+  background: var(--phison-orange);
+  z-index: 50;
+}
+
+.diag {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 320px;
+  height: 88px;
+  background: var(--phison-orange);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 40px) 100%, 0 100%);
+  display: flex;
+  align-items: center;
+  padding: 0 3rem 0 2.4rem;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: 0.22em;
+  color: white;
+  text-transform: uppercase;
+  z-index: 10;
+}
+
+.slide-num {
+  position: absolute;
+  top: 1.6rem;
+  right: 2.2rem;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 5.5rem;
+  line-height: 1;
+  color: var(--rule);
+  z-index: 5;
+  letter-spacing: -0.04em;
+}
+
+.section-tag {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 0.85rem;
+  letter-spacing: 0.32em;
+  color: var(--phison-orange);
+  text-transform: uppercase;
+  margin-bottom: 1rem;
+  flex-shrink: 0;
+}
+.section-tag::before {
+  content: '';
+  display: inline-block;
+  width: 36px; height: 2px;
+  background: var(--phison-orange);
+  vertical-align: middle;
+  margin-right: 1rem;
+}
+
+.slide h1 {
+  font-family: var(--cjk);
+  font-weight: 900;
+  font-size: clamp(2rem, 3.6vw, 3rem);
+  line-height: 1.18;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  max-width: 24em;
+  margin-bottom: 2rem;
+  flex-shrink: 0;
+}
+.slide h1 .accent { color: var(--phison-orange); }
+
+.content {
+  flex: 1 1 auto;
+  min-height: 0;
+  font-family: var(--cjk);
+  color: var(--ink);
+  overflow: hidden;
+}
+
+.lead {
+  font-family: var(--cjk);
+  font-size: 1.4rem;
+  line-height: 1.65;
+  font-weight: 400;
+  color: var(--ink-soft);
+  max-width: 38em;
+  margin-bottom: 1.6rem;
+}
+.lead strong {
+  color: var(--ink);
+  font-weight: 600;
+  border-bottom: 2px solid var(--phison-orange);
+  padding-bottom: 1px;
+}
+
+.callout {
+  background: var(--surface-alt);
+  border-left: 4px solid var(--phison-orange);
+  padding: 0.85rem 1.1rem;
+  margin-top: 1.1rem;
+  font-family: var(--cjk);
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+.callout strong { color: var(--ink); font-weight: 700; }
+.callout code {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  background: white;
+  padding: 0.05rem 0.34rem;
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  border-radius: 2px;
+}
+
+.footer {
+  position: absolute;
+  bottom: 1.6rem;
+  left: 4rem;
+  font-family: var(--display);
+  font-size: 0.78rem;
+  letter-spacing: 0.28em;
+  color: var(--ink-mute);
+  text-transform: uppercase;
+  z-index: 5;
+}
+.footer .dot {
+  display: inline-block;
+  width: 6px; height: 6px;
+  background: var(--phison-orange);
+  border-radius: 50%;
+  vertical-align: middle;
+  margin: 0 0.7rem;
+}
+
+/* ============================================================ */
+/* COVER                                                        */
+/* ============================================================ */
+.cover {
+  display: none;
+  grid-template-columns: 1.4fr 1fr;
+  padding: 0 !important;
+}
+.cover.active { display: grid; }
+
+.cover-left {
+  padding: 4.5rem 3.5rem 3rem;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  gap: 1.4rem;
+}
+
+.cover-eyebrow {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.42em;
+  color: var(--phison-orange);
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.cover-title {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(3rem, 6.8vw, 5.5rem);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  flex-shrink: 0;
+}
+.cover-title span { display: block; }
+.cover-title .accent { color: var(--phison-orange); }
+
+.cover-sub {
+  font-family: var(--cjk);
+  font-weight: 500;
+  font-size: 1.2rem;
+  color: var(--ink-soft);
+  max-width: 32em;
+  line-height: 1.65;
+  flex-shrink: 0;
+}
+
+.cover-spacer { flex: 1 1 auto; min-height: 1rem; }
+
+.cover-meta {
+  display: flex;
+  gap: 2.2rem;
+  font-family: var(--display);
+  font-size: 0.82rem;
+  letter-spacing: 0.18em;
+  color: var(--ink-mute);
+  text-transform: uppercase;
+}
+.cover-meta div {
+  border-left: 3px solid var(--phison-orange);
+  padding-left: 0.9rem;
+}
+.cover-meta strong {
+  display: block;
+  color: var(--ink);
+  font-size: 1.05rem;
+  margin-top: 0.25rem;
+  letter-spacing: 0.1em;
+}
+
+.cover-right {
+  background: var(--accent-navy);
+  position: relative;
+  overflow: hidden;
+}
+.cover-right::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(0deg, transparent 49.5%, rgba(255,255,255,0.05) 50%, transparent 50.5%),
+    linear-gradient(90deg, transparent 49.5%, rgba(255,255,255,0.05) 50%, transparent 50.5%);
+  background-size: 56px 56px;
+}
+.cover-right .ornament {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -56%);
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(8rem, 18vw, 16rem);
+  line-height: 1;
+  color: var(--phison-orange);
+  letter-spacing: -0.04em;
+}
+.cover-right .ornament-rule {
+  position: absolute;
+  top: 50%;
+  left: 18%;
+  right: 18%;
+  height: 2px;
+  background: rgba(255,255,255,0.12);
+}
+.cover-right .ornament-sub {
+  position: absolute;
+  bottom: 3rem;
+  left: 3rem;
+  right: 3rem;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.55);
+  letter-spacing: 0.18em;
+  line-height: 1.8;
+}
+.cover-right .ornament-corner {
+  position: absolute;
+  top: 2rem; right: 2rem;
+  width: 36px; height: 36px;
+  border-top: 3px solid var(--phison-orange);
+  border-right: 3px solid var(--phison-orange);
+}
+
+/* ============================================================ */
+/* COMPONENTS                                                   */
+/* ============================================================ */
+
+/* 3-role grid */
+.roles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.2rem;
+  margin-top: 1rem;
+}
+.role {
+  background: var(--surface-alt);
+  border-top: 5px solid var(--phison-orange);
+  padding: 1.6rem 1.4rem 1.4rem;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.role .num {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 0.85rem;
+  letter-spacing: 0.32em;
+  color: var(--phison-orange);
+}
+.role h3 {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 1.7rem;
+  margin: 0.3rem 0 0.1rem;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+}
+.role .role-cn {
+  font-family: var(--cjk);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 0.9rem;
+}
+.role p {
+  font-family: var(--cjk);
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+.role .who {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  color: var(--ink-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  border-top: 1px solid var(--rule-strong);
+  padding-top: 0.7rem;
+  margin-top: auto;
+  padding-top: 0.8rem;
+}
+.role .who strong {
+  display: block;
+  color: var(--ink);
+  font-size: 0.95rem;
+  font-family: var(--cjk);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  margin-top: 0.2rem;
+  text-transform: none;
+}
+
+/* Role single — for dedicated role slide */
+.role-single {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 3rem;
+  align-items: start;
+}
+.role-single .left h3 {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 4rem;
+  line-height: 1;
+  margin-bottom: 0.4rem;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.role-single .left .role-cn {
+  font-family: var(--cjk);
+  font-weight: 700;
+  font-size: 1.6rem;
+  color: var(--phison-orange);
+  margin-bottom: 1.4rem;
+}
+.role-single .left p {
+  font-family: var(--cjk);
+  font-size: 1.1rem;
+  line-height: 1.7;
+  color: var(--ink-soft);
+  margin-bottom: 1rem;
+}
+.role-single .right .panel {
+  background: var(--surface-alt);
+  border-left: 4px solid var(--phison-orange);
+  padding: 1.2rem 1.4rem;
+  margin-bottom: 1rem;
+}
+.role-single .right .panel .label {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 0.78rem;
+  letter-spacing: 0.28em;
+  color: var(--phison-orange);
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+}
+.role-single .right .panel .val {
+  font-family: var(--cjk);
+  font-size: 1rem;
+  line-height: 1.55;
+  color: var(--ink);
+}
+.role-single .right .panel .val code {
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  background: white;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--rule);
+  color: var(--ink);
+}
+
+/* Mode comparison cards (slide 4 examiner) */
+.mode-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.4rem;
+  margin-top: 0.4rem;
+}
+.mode {
+  background: var(--surface-alt);
+  padding: 1.4rem;
+  border-top: 5px solid var(--rule-strong);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.mode.primary {
+  background: white;
+  border-top-color: var(--phison-orange);
+  outline: 2px solid var(--phison-orange);
+  outline-offset: -2px;
+  box-shadow: 0 10px 28px rgba(238, 118, 35, 0.10);
+}
+.mode-flag {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.3em;
+  color: var(--phison-orange);
+  text-transform: uppercase;
+}
+.mode-flag.aux { color: var(--ink-mute); }
+.mode-name {
+  font-family: var(--cjk);
+  font-weight: 800;
+  font-size: 1.35rem;
+  margin-top: 0.4rem;
+  color: var(--ink);
+  line-height: 1.2;
+}
+.mode-tag {
+  font-family: var(--cjk);
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  margin-top: 0.3rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 0.85rem;
+}
+.mode-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  font-family: var(--cjk);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+.mode-rows > div {
+  display: grid;
+  grid-template-columns: 78px 1fr;
+  gap: 0.5rem;
+  align-items: start;
+}
+.mode-rows .lbl {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 0.7rem;
+  color: var(--ink-mute);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding-top: 0.18rem;
+}
+.mode-rows .val { color: var(--ink-soft); }
+.mode.primary .mode-rows .val { color: var(--ink); }
+.mode-rows .val code {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  background: white;
+  border: 1px solid var(--rule);
+  padding: 0.05rem 0.34rem;
+  color: var(--ink);
+  border-radius: 2px;
+}
+.mode.primary .mode-rows .val code {
+  background: var(--surface-alt);
+}
+
+/* Pipeline / flow */
+.pipeline {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+  margin-top: 1rem;
+}
+.pipeline-row {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 1.6rem;
+  align-items: stretch;
+}
+.pipeline-label {
+  background: var(--accent-navy);
+  color: white;
+  padding: 1rem 0.8rem;
+  text-align: center;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+.pipeline-label::after {
+  content: '';
+  position: absolute;
+  right: -10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0; height: 0;
+  border-left: 10px solid var(--accent-navy);
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+}
+.pipeline-label .big {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  margin-bottom: 0.1rem;
+}
+.flow {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
+  align-items: stretch;
+  gap: 0.6rem;
+}
+.flow-step {
+  background: white;
+  border: 2px solid var(--ink);
+  padding: 1rem 0.9rem 1rem;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+}
+.flow-step .icon {
+  width: 44px;
+  height: 44px;
+  color: var(--phison-orange);
+  margin-bottom: 0.2rem;
+  flex-shrink: 0;
+}
+.flow-step .icon svg {
+  width: 100%;
+  height: 100%;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.flow-step .icon.dual {
+  display: flex;
+  width: auto;
+  gap: 0.35rem;
+  align-items: center;
+}
+.flow-step .icon.dual svg {
+  width: 30px;
+  height: 30px;
+}
+.flow-step .icon.dual .sep {
+  width: 1px;
+  height: 22px;
+  background: var(--rule-strong);
+}
+.flow-step .icon.dual .pri {
+  position: relative;
+}
+.flow-step .icon.dual .pri::after {
+  content: 'A';
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: var(--phison-orange);
+  color: white;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 0.6rem;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.flow-step .icon.dual .aux {
+  color: var(--ink-mute);
+  position: relative;
+}
+.flow-step .icon.dual .aux::after {
+  content: 'B';
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: var(--ink-mute);
+  color: white;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 0.6rem;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.flow-step .step-tag {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 0.7rem;
+  letter-spacing: 0.22em;
+  color: var(--phison-orange);
+  text-transform: uppercase;
+}
+.flow-step h4 {
+  font-family: var(--cjk);
+  font-weight: 800;
+  font-size: 1.05rem;
+  margin: 0.25rem 0 0.3rem;
+  color: var(--ink);
+}
+.flow-step p {
+  font-family: var(--cjk);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.flow-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 1.4rem;
+  color: var(--phison-orange);
+}
+
+/* File matrix table */
+.matrix {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+.matrix th, .matrix td {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--rule);
+}
+.matrix th {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  border-bottom: 2px solid var(--ink);
+}
+.matrix tr:hover td { background: var(--surface-alt); }
+.matrix td.path {
+  font-family: var(--mono);
+  font-size: 0.86rem;
+  color: var(--ink);
+  font-weight: 500;
+  width: 26%;
+}
+.matrix td.tag {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  color: var(--phison-orange);
+  text-transform: uppercase;
+  white-space: nowrap;
+  width: 16%;
+}
+.matrix td.desc {
+  font-family: var(--cjk);
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+/* Handover checklist */
+.checklist {
+  display: grid;
+  grid-template-columns: 72px 1.4fr 1fr;
+  gap: 0;
+  margin-top: 0.5rem;
+  border-top: 2px solid var(--ink);
+}
+.check-row { display: contents; }
+.check-row > * {
+  padding: 0.95rem 1.1rem;
+  border-bottom: 1px solid var(--rule);
+}
+.check-num {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 1.7rem;
+  color: var(--phison-orange);
+  background: var(--surface-alt);
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.check-body strong {
+  font-family: var(--cjk);
+  font-weight: 800;
+  font-size: 1.05rem;
+  display: block;
+  margin-bottom: 0.25rem;
+  color: var(--ink);
+}
+.check-body span {
+  font-family: var(--cjk);
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+  line-height: 1.55;
+}
+.check-target {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--ink);
+  background: white;
+  border-left: 3px solid var(--phison-orange);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.2rem;
+}
+.check-target .label {
+  color: var(--ink-mute);
+  font-family: var(--display);
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.check-target .file { font-weight: 600; word-break: break-all; }
+.check-target .params {
+  color: var(--ink-soft);
+  font-size: 0.74rem;
+  margin-top: 0.15rem;
+}
+
+/* TWO-COL */
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2.5rem;
+  align-items: start;
+}
+.col h3 {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 1.3rem;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--phison-orange);
+  display: inline-block;
+  padding-right: 2rem;
+  color: var(--ink);
+  text-transform: uppercase;
+}
+.col p, .col li {
+  font-family: var(--cjk);
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: var(--ink-soft);
+}
+.col ul { list-style: none; padding: 0; margin-top: 0.6rem; }
+.col li {
+  padding: 0.5rem 0 0.5rem 1.6rem;
+  position: relative;
+  border-bottom: 1px dashed var(--rule);
+}
+.col li::before {
+  content: '▸';
+  position: absolute;
+  left: 0;
+  top: 0.55rem;
+  color: var(--phison-orange);
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+.col li code {
+  font-family: var(--mono);
+  font-size: 0.83rem;
+  background: var(--surface-alt);
+  padding: 0.08rem 0.36rem;
+  color: var(--ink);
+  border-radius: 2px;
+}
+
+/* Section divider slide */
+.section-slide {
+  background: var(--accent-navy) !important;
+  color: white;
+}
+.section-slide .brand-stripe { background: var(--phison-orange); }
+.section-slide .footer { color: rgba(255,255,255,0.4); }
+
+.section-num {
+  position: absolute;
+  top: 50%;
+  left: 4rem;
+  transform: translateY(-50%);
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(12rem, 22vw, 22rem);
+  line-height: 0.85;
+  color: var(--phison-orange);
+  letter-spacing: -0.04em;
+}
+.section-meta {
+  position: absolute;
+  top: 50%;
+  left: clamp(18rem, 28vw, 28rem);
+  transform: translateY(-50%);
+  max-width: 36rem;
+}
+.section-meta .tag {
+  font-family: var(--display);
+  font-size: 1rem;
+  letter-spacing: 0.42em;
+  color: var(--phison-orange);
+  text-transform: uppercase;
+  margin-bottom: 0.8rem;
+}
+.section-meta h2 {
+  font-family: var(--cjk);
+  font-weight: 900;
+  font-size: clamp(2.4rem, 4.8vw, 4rem);
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  color: white;
+}
+.section-meta p {
+  font-family: var(--cjk);
+  font-size: 1.2rem;
+  font-weight: 400;
+  color: rgba(255,255,255,0.7);
+  margin-top: 1.2rem;
+  max-width: 28em;
+  line-height: 1.65;
+}
+.section-meta .corner {
+  position: absolute;
+  bottom: -2.5rem;
+  left: 0;
+  width: 60px;
+  height: 3px;
+  background: var(--phison-orange);
+}
+
+/* TLDR layout */
+.tldr {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 3rem;
+  align-items: start;
+}
+.tldr-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.2rem;
+}
+.stat {
+  background: var(--surface-alt);
+  padding: 1.4rem 1.2rem;
+  border-top: 4px solid var(--phison-orange);
+  position: relative;
+}
+.stat .big {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 3.4rem;
+  line-height: 1;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+.stat .big .unit {
+  font-size: 1.2rem;
+  color: var(--phison-orange);
+  margin-left: 0.2rem;
+  letter-spacing: 0;
+}
+.stat .lbl {
+  font-family: var(--cjk);
+  font-size: 0.92rem;
+  color: var(--ink-soft);
+  margin-top: 0.5rem;
+  font-weight: 500;
+}
+
+/* Final slide / contact */
+.contact-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.4rem;
+  margin-top: 1.4rem;
+}
+.contact-card {
+  background: var(--surface-alt);
+  padding: 1.4rem;
+  border-top: 4px solid var(--phison-orange);
+}
+.contact-card .label {
+  font-family: var(--display);
+  font-size: 0.78rem;
+  letter-spacing: 0.25em;
+  color: var(--phison-orange);
+  text-transform: uppercase;
+  margin-bottom: 0.6rem;
+}
+.contact-card h4 {
+  font-family: var(--cjk);
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: var(--ink);
+  margin-bottom: 0.5rem;
+}
+.contact-card p {
+  font-family: var(--cjk);
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+  line-height: 1.55;
+}
+.contact-card code {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  background: white;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--rule);
+  color: var(--ink);
+}
+
+@media (max-width: 1100px) {
+  .roles { grid-template-columns: 1fr; }
+  .flow { grid-template-columns: 1fr; }
+  .flow-arrow { transform: rotate(90deg); padding: 0.4rem 0; }
+  .two-col, .role-single, .tldr { grid-template-columns: 1fr; }
+  .checklist { grid-template-columns: 60px 1fr; }
+  .check-target { grid-column: 1 / -1; border-left: none; border-top: 3px solid var(--phison-orange); }
+  .cover { grid-template-columns: 1fr; }
+  .cover-right { display: none; }
+  .cover-meta { flex-wrap: wrap; gap: 1.2rem; }
+  .section-num { font-size: 10rem; }
+  .section-meta { left: 11rem; }
+  .contact-grid { grid-template-columns: 1fr; }
+  .pipeline-row { grid-template-columns: 1fr; }
+  .pipeline-label::after { display: none; }
+  .mode-grid { grid-template-columns: 1fr; }
+  .mode-rows > div { grid-template-columns: 64px 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="hud">
+  <span class="now" id="hudNow">01</span>
+  <span class="sep"></span>
+  <span id="hudTotal">12</span>
+</div>
+
+<div class="deck">
+
+  <!-- ============================================================ -->
+  <!-- SLIDE 1 — COVER                                              -->
+  <!-- ============================================================ -->
+  <section class="slide cover active" id="s1">
+    <div class="brand-stripe"></div>
+    <div class="cover-left">
+      <div class="cover-eyebrow">Internal Handover · 2026</div>
+      <h1 class="cover-title">
+        <span>SPEC</span>
+        <span class="accent">BENCHMARK</span>
+        <span>SYSTEM</span>
+      </h1>
+      <p class="cover-sub">針對技術規格文件的 AI 能力評測平台。<br>三個角色、兩套流程、一份可重現的成績單。</p>
+      <div class="cover-spacer"></div>
+      <div class="cover-meta">
+        <div><span>Document</span><strong>Project Intro</strong></div>
+        <div><span>Audience</span><strong>Engineering Teams</strong></div>
+        <div><span>Version</span><strong>v1.0 · 2026.05</strong></div>
+      </div>
+    </div>
+    <div class="cover-right">
+      <div class="ornament-corner"></div>
+      <div class="ornament-rule"></div>
+      <div class="ornament">3 / 2</div>
+      <div class="ornament-sub">// 3 ROLES&nbsp;&nbsp;·&nbsp;&nbsp;2 PIPELINES&nbsp;&nbsp;·&nbsp;&nbsp;1 SCORE<br>// CLAUDE CODE × NEXUS LOCAL AI</div>
+    </div>
+    <div class="footer">SPEC BENCHMARK SYSTEM <span class="dot"></span> COVER</div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- SLIDE 2 — TL;DR                                              -->
+  <!-- ============================================================ -->
+  <section class="slide" id="s2">
+    <div class="brand-stripe"></div>
+    <div class="diag">01 · OVERVIEW</div>
+    <div class="slide-num">02</div>
+    <div class="section-tag">TL;DR</div>
+    <h1>用 <span class="accent">AI</span> 考 AI 對<br>規格文件的<span class="accent">理解程度</span>。</h1>
+
+    <div class="content">
+      <div class="tldr">
+        <div>
+          <p class="lead">
+            把公司的 <strong>spec 文件</strong>當作教材：由 <strong>Nexus 地端 AI 出題</strong>（公開文件可改用 Claude Code），Nexus 地端 AI 答題，再由 Nexus 當裁判評分。
+            產出 <strong>HTML / JSON / suggestions.md</strong> 三份報告，量化地端 LLM 對技術規格的掌握度，並指出待補強的盲點。
+          </p>
+          <p class="lead" style="font-size:1.1rem; margin-top:1rem;">
+            目的：在地端模型上線、模型升級、或 RAG 改版時，提供<strong>可重現的迴歸測試</strong>，
+            而不是「感覺好像比較準」。
+          </p>
+        </div>
+        <div class="tldr-stats">
+          <div class="stat">
+            <div class="big">3<span class="unit">roles</span></div>
+            <div class="lbl">Examiner / Examinee / Judge</div>
+          </div>
+          <div class="stat">
+            <div class="big">2<span class="unit">pipelines</span></div>
+            <div class="lbl">出題流程 + 考試流程</div>
+          </div>
+          <div class="stat">
+            <div class="big">30<span class="unit">tests</span></div>
+            <div class="lbl">pytest 單元測試覆蓋</div>
+          </div>
+          <div class="stat">
+            <div class="big">4<span class="unit">formats</span></div>
+            <div class="lbl">PDF · MD · TXT · LOG</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">SPEC BENCHMARK <span class="dot"></span> 02 / 12 <span class="dot"></span> OVERVIEW</div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- SLIDE 3 — 三角色概覽                                          -->
+  <!-- ============================================================ -->
+  <section class="slide" id="s3">
+    <div class="brand-stripe"></div>
+    <div class="diag">02 · ARCHITECTURE</div>
+    <div class="slide-num">03</div>
+    <div class="section-tag">三角色架構</div>
+    <h1>把「考試」這件事拆成<br><span class="accent">出題 / 答題 / 評分</span>三個獨立角色。</h1>
+
+    <div class="content">
+      <p class="lead" style="margin-bottom:1.2rem;">
+        每個角色用不同的 AI、可獨立替換、可獨立評估。<strong>不混在同一個 prompt 裡</strong>是這個系統的核心設計。
+      </p>
+
+      <div class="roles">
+        <div class="role">
+          <span class="num">ROLE 01</span>
+          <h3>EXAMINER</h3>
+          <div class="role-cn">出題者</div>
+          <p>讀 spec 文件，依模板產出題庫 JSON。<strong>依文件機密等級選擇出題者</strong>：內部 / 機密文件走地端 AI，公開文件可用 Claude Code。</p>
+          <div class="who">
+            By
+            <strong>主：Nexus 地端 AI<br>輔：Claude Code</strong>
+          </div>
+        </div>
+        <div class="role">
+          <span class="num">ROLE 02</span>
+          <h3>EXAMINEE</h3>
+          <div class="role-cn">答題者</div>
+          <p>受測對象。接到題目給答案，<strong>不另外提供 spec</strong>，仰賴自身 RAG 與訓練。</p>
+          <div class="who">
+            By
+            <strong>Nexus 地端 AI（公司內 LLM）</strong>
+          </div>
+        </div>
+        <div class="role">
+          <span class="num">ROLE 03</span>
+          <h3>JUDGE</h3>
+          <div class="role-cn">裁判</div>
+          <p>對照題目與答案，依 rubric 評分並寫改善建議。產出 suggestions.md。</p>
+          <div class="who">
+            By
+            <strong>Nexus 地端 AI（同模型或不同模型）</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">SPEC BENCHMARK <span class="dot"></span> 03 / 12 <span class="dot"></span> ARCHITECTURE</div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- SLIDE 4 — 角色 1: 出題者（兩種模式對比）                      -->
+  <!-- ============================================================ -->
+  <section class="slide" id="s4">
+    <div class="brand-stripe"></div>
+    <div class="diag">02 · ARCHITECTURE</div>
+    <div class="slide-num">04</div>
+    <div class="section-tag">ROLE 01 / 出題者</div>
+    <h1>出題者有<span class="accent">兩種模式</span>，<br>依文件機密級別選擇。</h1>
+
+    <div class="content">
+      <p class="lead" style="font-size:1rem; margin-bottom:1rem;">
+        <strong>內部 / 機密 spec 由 Nexus 地端 AI 出題</strong>（資料不出公司網路），是日常主要管道。<br>
+        Claude Code 出題保留給<strong>公開文件</strong>或開發階段試水溫，因為它 context 長、不耗公司 API 額度。
+      </p>
+
+      <div class="mode-grid">
+        <div class="mode primary">
+          <div class="mode-flag">PRIMARY MODE</div>
+          <div class="mode-name">A · Nexus 地端 AI 出題</div>
+          <div class="mode-tag">內部 / 機密文件 · 日常主要管道</div>
+          <div class="mode-rows">
+            <div><span class="lbl">Engine</span><span class="val">Nexus 地端 AI（公司內 LLM，目前 Qwen 3.5）</span></div>
+            <div><span class="lbl">Driver</span><span class="val"><code>exam_runner.py --generate &lt;path&gt;</code></span></div>
+            <div><span class="lbl">Why</span><span class="val">資料不離公司網路、可審計、配額自管</span></div>
+            <div><span class="lbl">Trade-off</span><span class="val">受地端模型 context 長度限制；長文件需切段</span></div>
+          </div>
+        </div>
+        <div class="mode">
+          <div class="mode-flag aux">AUXILIARY MODE</div>
+          <div class="mode-name">B · Claude Code 出題</div>
+          <div class="mode-tag">公開文件 · 開發階段試跑</div>
+          <div class="mode-rows">
+            <div><span class="lbl">Engine</span><span class="val">Claude Code（在 session 內互動式出題）</span></div>
+            <div><span class="lbl">Driver</span><span class="val"><code>examiner.py</code> 的 <code>save_question_bank()</code></span></div>
+            <div><span class="lbl">Why</span><span class="val">長 context + 文件理解強；且不算公司 API quota</span></div>
+            <div><span class="lbl">Trade-off</span><span class="val">資料會送到雲端 — <strong>機密文件禁用</strong></span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <strong>共通輸出</strong>：兩種模式都產 <code>question_bank/&lt;name&gt;.json</code>（含 id / type / prompt / expected / context_ref），下游答題、評分流程完全一致。
+      </div>
+    </div>
+
+    <div class="footer">SPEC BENCHMARK <span class="dot"></span> 04 / 12 <span class="dot"></span> ROLE — EXAMINER</div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- SLIDE 5 — 角色 2: 答題者                                      -->
+  <!-- ============================================================ -->
+  <section class="slide" id="s5">
+    <div class="brand-stripe"></div>
+    <div class="diag">02 · ARCHITECTURE</div>
+    <div class="slide-num">05</div>
+    <div class="section-tag">ROLE 02 / 答題者</div>
+    <h1>答題者：<span class="accent">受測模型本人</span><br>不給小抄，看真本事。</h1>
+
+    <div class="content">
+      <div class="role-single">
+        <div class="left">
+          <h3>EXAMINEE</h3>
+          <div class="role-cn">答題者</div>
+          <p>接到題目後給答案。<strong>呼叫端不再附 spec 原文</strong>，因為地端模型已經接了 RAG，
+            這正是要驗證「它能不能在實際工作情境下答出來」。</p>
+          <p>每道題目走一次 API 呼叫，成本與延遲可量化；中途斷線可從 <code style="font-family:var(--mono);background:var(--surface-alt);padding:0.1rem 0.4rem;">--answer-only</code> 模式接續。</p>
+        </div>
+        <div class="right">
+          <div class="panel">
+            <div class="label">By</div>
+            <div class="val">Nexus 地端 AI（公司內 Qwen 3.5 系列；未來會換 Hermes）</div>
+          </div>
+          <div class="panel">
+            <div class="label">Driver</div>
+            <div class="val"><code>nexus_client.py</code> + <code>exam_runner.py</code></div>
+          </div>
+          <div class="panel">
+            <div class="label">Output</div>
+            <div class="val"><code>answers/&lt;run&gt;.json</code>（題號 → 答案；含 latency、token 數）</div>
+          </div>
+          <div class="panel">
+            <div class="label">Resume</div>
+            <div class="val"><code>python exam_runner.py --answer-only --resume</code> 可從中斷處續跑。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">SPEC BENCHMARK <span class="dot"></span> 05 / 12 <span class="dot"></span> ROLE — EXAMINEE</div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- SLIDE 6 — 角色 3: 裁判                                        -->
+  <!-- ============================================================ -->
+  <section class="slide" id="s6">
+    <div class="brand-stripe"></div>
+    <div class="diag">02 · ARCHITECTURE</div>
+    <div class="slide-num">06</div>
+    <div class="section-tag">ROLE 03 / 裁判</div>
+    <h1>裁判：依 rubric 評分，<br><span class="accent">不只給分數，還寫建議。</span></h1>
+
+    <div class="content">
+      <div class="role-single">
+        <div class="left">
+          <h3>JUDGE</h3>
+          <div class="role-cn">裁判</div>
+          <p>把「題目 + 標準答案 + 受測者答案」一起餵給 Judge，套用 <code style="font-family:var(--mono);background:var(--surface-alt);padding:0.1rem 0.4rem;">prompts/judge.yaml</code> 的評分標準（rubric），輸出分數 + 評語 + 改善建議。</p>
+          <p>建議會彙整成 <code style="font-family:var(--mono);background:var(--surface-alt);padding:0.1rem 0.4rem;">suggestions.md</code>，標出系統性弱點 — 例如「對 ECC 章節常答錯」、「常把單位搞混」— 便於改 RAG 或微調訓練資料。</p>
+        </div>
+        <div class="right">
+          <div class="panel">
+            <div class="label">By</div>
+            <div class="val">Nexus 地端 AI（可與 Examinee 同模型，便於回歸；亦可換成更強模型當 oracle）</div>
+          </div>
+          <div class="panel">
+            <div class="label">Module</div>
+            <div class="val"><code>judge.py</code></div>
+          </div>
+          <div class="panel">
+            <div class="label">Rubric</div>
+            <div class="val"><code>prompts/judge.yaml</code>（評分維度 / 配分 / 評語格式皆可調）</div>
+          </div>
+          <div class="panel">
+            <div class="label">Output</div>
+            <div class="val">三份報告：<code>report.html</code> · <code>report.json</code> · <code>suggestions.md</code></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">SPEC BENCHMARK <span class="dot"></span> 06 / 12 <span class="dot"></span> ROLE — JUDGE</div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- SLIDE 7 — 兩個流程                                            -->
+  <!-- ============================================================ -->
+  <section class="slide" id="s7">
+    <div class="brand-stripe"></div>
+    <div class="diag">02 · ARCHITECTURE</div>
+    <div class="slide-num">07</div>
+    <div class="section-tag">PIPELINES</div>
+    <h1>兩條獨立流程，<span class="accent">人工觸發 / 機器跑批。</span></h1>
+
+    <div class="content">
+      <p class="lead" style="font-size:1.05rem; margin-bottom:1rem;">
+        出題與考試解耦：題庫是<strong>資產</strong>，可重複用、可版控；考試是<strong>事件</strong>，可批次、可比對。
+      </p>
+
+      <div class="pipeline">
+        <div class="pipeline-row">
+          <div class="pipeline-label">
+            <span class="big">A</span>
+            <span>Generate</span>
+          </div>
+          <div class="flow">
+            <!-- Step 1: Document icon -->
+            <div class="flow-step">
+              <div class="icon" title="Spec document">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 3h9l5 5v13H6z"/>
+                  <path d="M15 3v5h5"/>
+                  <path d="M9 13h6M9 16h6M9 10h3"/>
+                </svg>
+              </div>
+              <div class="step-tag">Step 1</div>
+              <h4>放 spec</h4>
+              <p>使用者把文件丟到 <code style="font-family:var(--mono);font-size:0.72rem;">specs/</code></p>
+            </div>
+            <div class="flow-arrow">►</div>
+            <!-- Step 2: Dual AI mode (Nexus server + Claude cloud) -->
+            <div class="flow-step">
+              <div class="icon dual" title="Nexus server (primary) / Claude Code cloud (auxiliary)">
+                <span class="pri">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="4" y="3" width="16" height="6" rx="1"/>
+                    <rect x="4" y="14" width="16" height="6" rx="1"/>
+                    <circle cx="8" cy="6" r="0.8" fill="currentColor"/>
+                    <circle cx="8" cy="17" r="0.8" fill="currentColor"/>
+                    <path d="M12 9v5"/>
+                  </svg>
+                </span>
+                <span class="sep"></span>
+                <span class="aux">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M7 18h10a4 4 0 0 0 1-7.87A5.5 5.5 0 0 0 7.16 9.5 4.5 4.5 0 0 0 7 18z"/>
+                  </svg>
+                </span>
+              </div>
+              <div class="step-tag">Step 2</div>
+              <h4>AI 出題</h4>
+              <p>主用 Nexus；公開文件可用 Claude Code</p>
+            </div>
+            <div class="flow-arrow">►</div>
+            <!-- Step 3: Magnifier with check (review) -->
+            <div class="flow-step">
+              <div class="icon" title="Human review">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="11" cy="11" r="6"/>
+                  <path d="m20 20-4-4"/>
+                  <path d="m8.5 11 1.8 1.8L13.7 9.5"/>
+                </svg>
+              </div>
+              <div class="step-tag">Step 3</div>
+              <h4>人工審題</h4>
+              <p>檢查題目品質，可刪可改</p>
+            </div>
+            <div class="flow-arrow">►</div>
+            <!-- Step 4: Database cylinder (question bank) -->
+            <div class="flow-step">
+              <div class="icon" title="Question bank">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <ellipse cx="12" cy="5" rx="7" ry="2.5"/>
+                  <path d="M5 5v6c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V5"/>
+                  <path d="M5 11v6c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5v-6"/>
+                </svg>
+              </div>
+              <div class="step-tag">Step 4</div>
+              <h4>存題庫</h4>
+              <p><code style="font-family:var(--mono);font-size:0.72rem;">question_bank/*.json</code></p>
+            </div>
+          </div>
+        </div>
+        <div class="pipeline-row">
+          <div class="pipeline-label">
+            <span class="big">B</span>
+            <span>Exam</span>
+          </div>
+          <div class="flow">
+            <!-- Step 1: Terminal (run_exam) -->
+            <div class="flow-step">
+              <div class="icon" title="CLI / batch trigger">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="3" y="4" width="18" height="16" rx="1"/>
+                  <path d="m7 10 3 2-3 2"/>
+                  <path d="M13 14h4"/>
+                </svg>
+              </div>
+              <div class="step-tag">Step 1</div>
+              <h4>觸發考試</h4>
+              <p><code style="font-family:var(--mono);font-size:0.72rem;">run_exam.bat</code> 或 CLI</p>
+            </div>
+            <div class="flow-arrow">►</div>
+            <!-- Step 2: AI server with response bubble (Nexus answer) -->
+            <div class="flow-step">
+              <div class="icon" title="Nexus answers">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="3" y="3" width="11" height="7" rx="1"/>
+                  <circle cx="6" cy="6.5" r="0.8" fill="currentColor"/>
+                  <path d="M9 6.5h3"/>
+                  <path d="M9 14h12v6l-4-2H9z"/>
+                  <path d="M13 17h4"/>
+                </svg>
+              </div>
+              <div class="step-tag">Step 2</div>
+              <h4>Nexus 答題</h4>
+              <p>逐題打 API；存 answers.json</p>
+            </div>
+            <div class="flow-arrow">►</div>
+            <!-- Step 3: Clipboard with check (judge) -->
+            <div class="flow-step">
+              <div class="icon" title="Judge scoring">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M9 4h6v3H9z"/>
+                  <path d="M9 5H6a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-3"/>
+                  <path d="m9 14 2 2 4-4"/>
+                </svg>
+              </div>
+              <div class="step-tag">Step 3</div>
+              <h4>Judge 評分</h4>
+              <p>套 judge.yaml rubric</p>
+            </div>
+            <div class="flow-arrow">►</div>
+            <!-- Step 4: Document with bar chart (report) -->
+            <div class="flow-step">
+              <div class="icon" title="Reports">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 3h9l5 5v13H6z"/>
+                  <path d="M15 3v5h5"/>
+                  <path d="M9 18v-3"/>
+                  <path d="M12 18v-5"/>
+                  <path d="M15 18v-2"/>
+                </svg>
+              </div>
+              <div class="step-tag">Step 4</div>
+              <h4>產報告</h4>
+              <p>HTML + JSON + suggestions.md</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">SPEC BENCHMARK <span class="dot"></span> 07 / 12 <span class="dot"></span> PIPELINES</div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- SLIDE 8 — 檔案地圖                                            -->
+  <!-- ============================================================ -->
+  <section class="slide" id="s8">
+    <div class="brand-stripe"></div>
+    <div class="diag">02 · ARCHITECTURE</div>
+    <div class="slide-num">08</div>
+    <div class="section-tag">FILE MAP</div>
+    <h1>誰負責什麼？<span class="accent">一張表看完。</span></h1>
+
+    <div class="content">
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th>FILE</th>
+            <th>ROLE</th>
+            <th>RESPONSIBILITY</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="path">exam_runner.py</td>      <td class="tag">Entry · CLI</td>  <td class="desc">主程式；<strong>--generate 走 Nexus 出題</strong>，--answer-only / --resume 控考試流程</td></tr>
+          <tr><td class="path">examiner.py</td>         <td class="tag">Examiner · Aux</td><td class="desc">輔助出題模式：提供 save_question_bank() 給 Claude Code session 使用（公開文件用）</td></tr>
+          <tr><td class="path">spec_loader.py</td>      <td class="tag">Loader</td>       <td class="desc">統一載入 PDF / MD / TXT / LOG；資料夾遞迴；自動跳過 .git / __pycache__ 等</td></tr>
+          <tr><td class="path">nexus_client.py</td>     <td class="tag">Examinee · Judge</td><td class="desc">Nexus REST API 封裝；換 LLM 提供商時主要動這一個檔</td></tr>
+          <tr><td class="path">judge.py</td>            <td class="tag">Judge</td>        <td class="desc">評分流程；組 prompt、解析回應、聚合分數</td></tr>
+          <tr><td class="path">prompt_loader.py</td>    <td class="tag">Templates</td>   <td class="desc">YAML 模板載入 + {{var}} 變數替換</td></tr>
+          <tr><td class="path">report_generator.py</td> <td class="tag">Output</td>      <td class="desc">產出 HTML（自包含）/ JSON / suggestions.md</td></tr>
+          <tr><td class="path">config.yaml</td>         <td class="tag">Config</td>      <td class="desc">認證 token、API base_url、模型選擇、考試參數</td></tr>
+          <tr><td class="path">prompts/*.yaml</td>      <td class="tag">Prompts</td>     <td class="desc">examiner / judge 模板；題型、評分標準在這裡改</td></tr>
+          <tr><td class="path">tests/</td>              <td class="tag">Safety</td>      <td class="desc">30 個 pytest；保護 spec_loader 邊界 + JSON schema 契約</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="footer">SPEC BENCHMARK <span class="dot"></span> 08 / 12 <span class="dot"></span> FILE MAP</div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- SLIDE 9 — SECTION DIVIDER: HANDOVER                          -->
+  <!-- ============================================================ -->
+  <section class="slide section-slide" id="s9">
+    <div class="brand-stripe"></div>
+    <div class="section-num">02</div>
+    <div class="section-meta">
+      <div class="tag">PART TWO</div>
+      <h2>給接手團隊的<br>客製化指南</h2>
+      <p>新團隊拿走整套程式 → 接自己的 LLM → 放自己的 spec → 跑自己的考試。<br>下面四件事做完就能開測。</p>
+      <div class="corner"></div>
+    </div>
+    <div class="footer">SPEC BENCHMARK <span class="dot"></span> 09 / 12 <span class="dot"></span> HANDOVER</div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- SLIDE 10 — Day 1: 環境 + 認證                                  -->
+  <!-- ============================================================ -->
+  <section class="slide" id="s10">
+    <div class="brand-stripe"></div>
+    <div class="diag">03 · HANDOVER</div>
+    <div class="slide-num">10</div>
+    <div class="section-tag">DAY 1 / 環境準備</div>
+    <h1>第一件事：<span class="accent">把環境跑起來。</span></h1>
+
+    <div class="content">
+      <div class="checklist">
+        <div class="check-row">
+          <div class="check-num">01</div>
+          <div class="check-body">
+            <strong>裝相依套件</strong>
+            <span>Python 3.10+，requests、PyYAML、Jinja2、pypdf、pytest。專案附 requirements.txt。</span>
+          </div>
+          <div class="check-target">
+            <span class="label">Edit</span>
+            <span class="file">requirements.txt</span>
+            <span class="params">$ pip install -r requirements.txt</span>
+          </div>
+        </div>
+        <div class="check-row">
+          <div class="check-num">02</div>
+          <div class="check-body">
+            <strong>填認證資訊</strong>
+            <span>把 Nexus（或你們的 LLM）的 API base_url、token、模型名稱填進去。先別 commit。</span>
+          </div>
+          <div class="check-target">
+            <span class="label">Edit</span>
+            <span class="file">config.yaml</span>
+            <span class="params">api.base_url · api.token · api.model</span>
+          </div>
+        </div>
+        <div class="check-row">
+          <div class="check-num">03</div>
+          <div class="check-body">
+            <strong>跑單元測試</strong>
+            <span>30 個測試應該全綠。如果失敗，通常是 Python 版本或 pypdf 版本問題。</span>
+          </div>
+          <div class="check-target">
+            <span class="label">Verify</span>
+            <span class="file">tests/</span>
+            <span class="params">$ python -m pytest tests/ -v</span>
+          </div>
+        </div>
+        <div class="check-row">
+          <div class="check-num">04</div>
+          <div class="check-body">
+            <strong>放一份 sample spec 試跑</strong>
+            <span>先丟一份小 PDF 進 specs/，請 Claude 出 5 題，再用 run_exam.bat 跑一次完整流程確認 e2e 通。</span>
+          </div>
+          <div class="check-target">
+            <span class="label">Verify</span>
+            <span class="file">specs/sample.pdf</span>
+            <span class="params">$ run_exam.bat（或 python exam_runner.py）</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">SPEC BENCHMARK <span class="dot"></span> 10 / 12 <span class="dot"></span> HANDOVER · DAY 1</div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- SLIDE 11 — 客製化重點                                          -->
+  <!-- ============================================================ -->
+  <section class="slide" id="s11">
+    <div class="brand-stripe"></div>
+    <div class="diag">03 · HANDOVER</div>
+    <div class="slide-num">11</div>
+    <div class="section-tag">WEEK 1 / 客製化</div>
+    <h1>第二件事：<span class="accent">換成你們的 LLM、你們的 spec、你們的標準。</span></h1>
+
+    <div class="content">
+      <div class="checklist">
+        <div class="check-row">
+          <div class="check-num">05</div>
+          <div class="check-body">
+            <strong>換 LLM 後端（最常見的客製）</strong>
+            <span>把 nexus_client.py 換成你們公司的 client。只要保留 generate_response_sync(prompt, **kwargs) → str 這個介面，其餘程式不用動。未來 Hermes 上線同樣套路。</span>
+          </div>
+          <div class="check-target">
+            <span class="label">Replace</span>
+            <span class="file">nexus_client.py</span>
+            <span class="params">keep: generate_response_sync()</span>
+          </div>
+        </div>
+        <div class="check-row">
+          <div class="check-num">06</div>
+          <div class="check-body">
+            <strong>客製出題模板</strong>
+            <span>改題型分布、難度、語言、題數上限。YAML 即可，不用碰程式。{{spec_text}} 等變數由 prompt_loader 自動代入。</span>
+          </div>
+          <div class="check-target">
+            <span class="label">Edit</span>
+            <span class="file">prompts/examiner.yaml</span>
+            <span class="params">question_types · count · difficulty</span>
+          </div>
+        </div>
+        <div class="check-row">
+          <div class="check-num">07</div>
+          <div class="check-body">
+            <strong>客製評分標準</strong>
+            <span>各部門對「答對」的定義不同。改 rubric 維度（正確性、完整度、引用準確度…）與配分。Judge 會直接套用。</span>
+          </div>
+          <div class="check-target">
+            <span class="label">Edit</span>
+            <span class="file">prompts/judge.yaml</span>
+            <span class="params">rubric · weights · output_schema</span>
+          </div>
+        </div>
+        <div class="check-row">
+          <div class="check-num">08</div>
+          <div class="check-body">
+            <strong>放自己的 spec、改報告外觀</strong>
+            <span>specs/ 內可放任意 PDF/MD/TXT/LOG 與資料夾。報告樣式（公司 logo、配色、欄位）改 report_generator 的 Jinja2 模板。</span>
+          </div>
+          <div class="check-target">
+            <span class="label">Edit</span>
+            <span class="file">specs/ · report_generator.py</span>
+            <span class="params">放文件 · 改 template_html</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">SPEC BENCHMARK <span class="dot"></span> 11 / 12 <span class="dot"></span> HANDOVER · WEEK 1</div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- SLIDE 12 — 已知限制 + 聯絡                                     -->
+  <!-- ============================================================ -->
+  <section class="slide" id="s12">
+    <div class="brand-stripe"></div>
+    <div class="diag">03 · HANDOVER</div>
+    <div class="slide-num">12</div>
+    <div class="section-tag">CAVEATS &amp; CONTACT</div>
+    <h1>已知限制與起手式。<br><span class="accent">踩雷前先讀。</span></h1>
+
+    <div class="content">
+      <div class="two-col" style="gap:2.5rem;">
+        <div class="col">
+          <h3>已知限制</h3>
+          <ul>
+            <li>純圖片 PDF（無文字層）會被 <code>spec_loader</code> 跳過並記 warning — 需另接 OCR。</li>
+            <li>Nexus 偶爾回傳<strong>非嚴格 JSON</strong>（多餘逗號、單引號）— <code>judge.py</code> 有 best-effort fallback，但建議監控失敗率。</li>
+            <li>Windows cmd 的中文編碼坑：<code>.bat</code> 內<strong>不要寫中文</strong>，註解一律英文（cp950 vs UTF-8）。</li>
+            <li>考試中斷可用 <code>--resume</code> 接續；但若<strong>題庫變了</strong>，必須重跑整批。</li>
+            <li>30 個測試<strong>不 mock 網路</strong>，跑單元測試不會打 Nexus；e2e 要自己手動跑。</li>
+          </ul>
+        </div>
+        <div class="col">
+          <h3>給接手同事的起手式</h3>
+          <ul>
+            <li>讀 <code>HANDOVER.md</code>（工程細節）+ 本 deck（全貌）。</li>
+            <li>Day 1：環境跑通 + sample spec e2e。</li>
+            <li>Week 1：替換 <code>nexus_client.py</code>、調 prompts。</li>
+            <li>Week 2：放真實 spec、跑第一輪 baseline、留存報告做後續比對基準。</li>
+            <li>更新 <code>CLAUDE.md</code>（專案根）成你們團隊的 context — Claude Code 會自動讀。</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="contact-grid" style="margin-top:1.4rem;">
+        <div class="contact-card">
+          <div class="label">Source Docs</div>
+          <h4>細節文件</h4>
+          <p><code>HANDOVER.md</code> · <code>USER_GUIDE.md</code> · <code>CLAUDE.md</code> · 本 deck（<code>docs/project_intro_slides.html</code>）</p>
+        </div>
+        <div class="contact-card">
+          <div class="label">Tests</div>
+          <h4>安全網</h4>
+          <p>30 pytest 案例。<code>TestSkipDirsBoundary</code> 保護 loader 契約，改 <code>spec_loader</code> 前先看。</p>
+        </div>
+        <div class="contact-card">
+          <div class="label">Maintainer</div>
+          <h4>原作者</h4>
+          <p>有疑問先翻 <code>memory/</code> 內的開發脈絡，再來找原作者。</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">SPEC BENCHMARK <span class="dot"></span> 12 / 12 <span class="dot"></span> END</div>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const total = slides.length;
+  const hudNow = document.getElementById('hudNow');
+  const hudTotal = document.getElementById('hudTotal');
+  hudTotal.textContent = String(total).padStart(2, '0');
+
+  let idx = 0;
+
+  function show(i, opts) {
+    opts = opts || {};
+    idx = Math.max(0, Math.min(total - 1, i));
+    slides.forEach((s, k) => s.classList.toggle('active', k === idx));
+    hudNow.textContent = String(idx + 1).padStart(2, '0');
+    const targetHash = '#' + slides[idx].id;
+    if (!opts.fromHash && location.hash !== targetHash) {
+      history.replaceState(null, '', targetHash);
+    }
+  }
+
+  // Resolve hash → index. Accepts both id form (#s7) and numeric (#7) for back-compat.
+  function indexFromHash(h) {
+    const raw = (h || '').replace(/^#/, '');
+    if (!raw) return -1;
+    const byId = slides.findIndex(s => s.id === raw);
+    if (byId >= 0) return byId;
+    const n = parseInt(raw, 10);
+    if (!Number.isNaN(n) && n >= 1 && n <= total) return n - 1;
+    return -1;
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
+      e.preventDefault(); show(idx + 1);
+    } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+      e.preventDefault(); show(idx - 1);
+    } else if (e.key === 'Home') {
+      e.preventDefault(); show(0);
+    } else if (e.key === 'End') {
+      e.preventDefault(); show(total - 1);
+    }
+  });
+
+  // Click right edge → next, left edge → prev
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('a, button, input')) return;
+    const x = e.clientX;
+    const w = window.innerWidth;
+    if (x > w * 0.75) show(idx + 1);
+    else if (x < w * 0.15) show(idx - 1);
+  });
+
+  // Browser back/forward + manual hash edits
+  window.addEventListener('hashchange', () => {
+    const target = indexFromHash(location.hash);
+    if (target >= 0 && target !== idx) show(target, { fromHash: true });
+  });
+
+  // Initial deep-link
+  const initial = indexFromHash(location.hash);
+  show(initial >= 0 ? initial : 0);
+})();
+</script>
+
+</body>
+</html>

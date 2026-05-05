@@ -1,17 +1,17 @@
 # Spec Benchmark Test System
 
 ## Overview
-針對 spec 文件的 AI 能力評測系統。出題者（Claude Code）產生題庫，答題者（Nexus AI）作答，裁判（Nexus AI）評分並提供改善建議。
+針對 spec 文件的 AI 能力評測系統。出題者（**主：Nexus 地端 AI；輔：Claude Code**）產生題庫，答題者（Nexus AI）作答，裁判（Nexus AI）評分並提供改善建議。
 
 ## Architecture
-- **出題流程**：Claude Code session 中執行，讀 `specs/` 裡的文件 → 產出題庫 JSON
+- **出題流程**：兩種模式 — (A) 內部 / 機密文件由 Nexus 地端 AI 出題（`exam_runner.py --generate`，主要管道，資料不出公司網路）；(B) 公開文件可用 Claude Code session 出題（輔助）
 - **考試流程**：獨立 Python CLI（`exam_runner.py`），呼叫 Nexus API → 產出 HTML/JSON/suggestions 報告
 
 ## Key Files
 | File | Purpose |
 |------|---------|
 | `exam_runner.py` | 考試主程式 CLI |
-| `examiner.py` | 出題輔助（Claude Code 用） |
+| `examiner.py` | 出題輔助（Claude Code 出題模式用，B 路徑） |
 | `spec_loader.py` | 載入 spec 檔案/資料夾（PDF/MD/TXT/LOG），供 `--generate` 使用 |
 | `judge.py` | 裁判評分模組 |
 | `prompt_loader.py` | YAML prompt 模板載入 |
@@ -21,7 +21,7 @@
 | `prompts/*.yaml` | 可自訂的 prompt 模板 |
 | `USER_GUIDE.md` | 使用者操作面文件 |
 | `HANDOVER.md` | 工程師向交接文件（架構、資料流、擴展點、debug tips） |
-| `docs/handover_slides.html` | 工程師交接用自包含 HTML 投影片（15 頁，鍵盤左右切換） |
+| `docs/project_intro_slides.html` | 對外團隊交接用 HTML 投影片（Phison 風 12 頁，含兩種出題模式對比與 pipeline 圖示，鍵盤 ←/→ 切換） |
 
 ## Tech Stack
 Python 3.10+, requests, PyYAML, Jinja2, pypdf
@@ -40,8 +40,18 @@ python exam_runner.py --help  # CLI usage
 - 每個檔案會在送給 AI 時加上 `--- FILE: <相對路徑> ---` 分隔標頭
 - PDF 用 `pypdf` 抽文字；純圖片 PDF（無 OCR）會跳過並記錄警告
 
-## 出題流程（在 Claude Code 中）
+## 出題流程（兩種模式）
+
+### A. Nexus 地端 AI 出題（主要 / 內部 機密文件）
 1. 使用者把 spec 放入 `specs/`
-2. 說「幫我出題」
+2. 跑 `python exam_runner.py --generate <path>` 或 `run_exam.bat`
+3. exam_runner 用 `spec_loader` 載文件、套 `prompts/examiner.yaml`，呼叫 Nexus 出題
+4. 自動存入 `question_bank/`
+5. **資料全程不離公司網路**
+
+### B. Claude Code 出題（輔助 / 公開文件）
+1. 使用者把 spec 放入 `specs/`
+2. 在 Claude Code session 中說「幫我出題」
 3. Claude 讀 spec + `prompts/examiner.yaml`，產生題目
 4. 用 `examiner.save_question_bank()` 存入 `question_bank/`
+5. **僅限公開文件** — 機密資料禁用此路徑
